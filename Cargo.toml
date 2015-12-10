@@ -1,0 +1,4 @@
+[package]
+name = "kolmogorov-smirnov"
+version = "0.1.0"
+authors = ["docrualaoich"]

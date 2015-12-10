@@ -1,0 +1,11 @@
+*.o
+*.so
+*.rlib
+*.dll
+*.exe
+target
+_build
+*.iml
+.idea
+*~
+.DS_Store
