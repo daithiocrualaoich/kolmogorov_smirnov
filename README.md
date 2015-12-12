@@ -1,6 +1,8 @@
 [![Build Status](https://travis-ci.org/daithiocrualaoich/kolmogorov-smirnov.svg?branch=master)](https://travis-ci.org/daithiocrualaoich/kolmogorov-smirnov)
 
 Implementation of the Kolmogorov-Smirnov statistical test as a Rust library.
+Read an introduction about this project, Rust, and the Kolmogorov-Smirnov test
+[here](http://daithiocrualaoich.github.io/kolmogorov-smirnov).
 
 
 Developing Kolmogorov-Smirnov
@@ -38,6 +40,60 @@ To run this command directly in the Docker container without the intermediate
 shell, use:
 
     docker run -t -v "$(pwd):/statistics" --workdir=/statistics statistics cargo test
+
+
+Building the Documentation
+--------------------------
+The RestructuredText format [Sphinx] documentation under `doc` can be compiled
+using the Makefile.
+
+    cd doc
+    make clean html
+
+[Sphinx]: http://sphinx-doc.org
+
+See this [RestructuredText Primer] for guidance on writing RestructuredText.
+
+[RestructuredText Primer]: http://sphinx-doc.org/rest.html
+
+The Docker container provides an installation of Python, Sphinx, and LaTeX
+required to do this build. To make the documentation directly in container
+without an intermediate shell, use:
+
+    docker run -t -v "$(pwd):/statistics" --workdir=/statistics/doc statistics make clean html
+
+The compiled document is written to the shared location and is available on the
+host machine under `doc/_build`. It is published at
+http://daithiocrualaoich.github.io/kolmogorov-smirnov using [Github Pages].
+
+[Github Pages]: https://pages.github.com
+
+To republish updated documentation, first build the html. Then create a copy of
+the repository and checkout the `gh-pages` branch. A separate copy is useful
+because the `master` and `gh-pages` branches are very dissimilar and switching
+between them with uncommitted changes is tedious.
+
+    cd ..
+    cp -r kolmogorov-smirnov kolmogorov-smirnov-ghpages
+    cd kolmogorov-smirnov-ghpages
+    git reset --hard HEAD
+    git clean -fdx
+    git checkout gh-pages
+
+Now remake the contents of this branch from the recently generated document.
+
+    rm -fr *
+    cp -r ../kolmogorov-smirnov/doc/_build/html/* .
+
+A `.nojekyll` file is also needed in order to prevent Github from ignoring the
+Sphinx CSS files.
+
+    touch .nojekyll
+
+Commit the changes and push the `gh-pages` branch to origin to perform the
+publication.
+
+    git push origin gh-pages
 
 
 License
