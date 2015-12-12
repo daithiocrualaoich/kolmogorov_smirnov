@@ -13,6 +13,33 @@ available. Then build and test the library using:
 [Rust]: https://www.rust-lang.org
 
 
+Docker
+------
+A [Docker] container definition is provided with installations of the tools
+used to develop the software. To use the container, first install Docker if not
+already available and start a Docker terminal. Then create the container by
+running the following build at the top level of the repository source tree:
+
+    docker build --rm=true -t statistics .
+
+[Docker]: http://docker.io
+
+Once built, an interactive shell can be run in the container using:
+
+    docker run -it -v "$(pwd):/statistics" --workdir=/statistics statistics /bin/bash
+
+The current working directory from the host machine is available as the current
+directory in the container so it is possible to build and test the library as
+described earlier.
+
+    cargo test
+
+To run this command directly in the Docker container without the intermediate
+shell, use:
+
+    docker run -t -v "$(pwd):/statistics" --workdir=/statistics statistics cargo test
+
+
 License
 -------
 
