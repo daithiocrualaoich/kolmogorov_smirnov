@@ -38,6 +38,25 @@ RUN     pip install cloud_sptheme
 
 
 ################################################################################
+# R
+################################################################################
+
+RUN     apt-get install -qq libjpeg62 libcairo2-dev
+
+RUN     gpg --keyserver keyserver.ubuntu.com --recv-key E084DAB9
+RUN     gpg -a --export E084DAB9 | apt-key add -
+RUN     echo 'deb http://cran.r-project.org/bin/linux/ubuntu wily/' > /etc/apt/sources.list.d/cran.list
+
+RUN     apt-get install -qq r-base
+
+RUN     echo 'update.packages(ask = FALSE, repos="http://cran.r-project.org")' | R --vanilla
+RUN     echo 'install.packages(c("markdown"), repos="http://cran.r-project.org", dependencies=TRUE)' | R --vanilla
+RUN     echo 'install.packages(c("knitr"), repos="http://cran.r-project.org", dependencies=TRUE)' | R --vanilla
+RUN     echo 'install.packages(c("Cairo"), repos="http://cran.r-project.org", dependencies=TRUE)' | R --vanilla
+RUN     echo 'install.packages(c("ggplot2"), repos="http://cran.r-project.org", dependencies=TRUE)' | R --vanilla
+
+
+################################################################################
 # Rust
 ################################################################################
 

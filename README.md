@@ -95,6 +95,10 @@ publication.
 
     git push origin gh-pages
 
+To regenerate the diagrams, run the following.
+
+    docker run -it -v "$(pwd):/statistics" --workdir=/statistics/dat statistics R -e "rmarkdown::render('images.Rmd')"
+
 
 License
 -------

@@ -9,3 +9,5 @@ _build
 .idea
 *~
 .DS_Store
+.RHistory
+*.html

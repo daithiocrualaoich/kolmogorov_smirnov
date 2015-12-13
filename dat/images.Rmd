@@ -1,0 +1,54 @@
+```{r, include=FALSE}
+require(ggplot2)
+
+knitr::opts_chunk$set(fig.path='../doc/images/')
+knitr::opts_chunk$set(out.width = '400px')
+knitr::opts_chunk$set(dpi=200)
+```
+
+# The Kolmogorov Smirnov Test
+
+```{r load, echo=FALSE}
+normal01 <- read.table("normal_0_1.tsv", sep="\t", header=FALSE)
+colnames(normal01) <- c("x")
+
+normal02 <- read.table("normal_0_2.tsv", sep="\t", header=FALSE)
+colnames(normal02) <- c("x")
+
+normal11 <- read.table("normal_1_1.tsv", sep="\t", header=FALSE)
+colnames(normal11) <- c("x")
+```
+
+## N(0,1) Density
+
+```{r n01, echo=FALSE, }
+ggplot(normal01, aes(x=x)) + 
+    stat_density(alpha=0.5) +
+    theme(axis.title.x = element_blank(),  axis.title.y = element_blank())
+```
+
+## N(0,2) Density
+
+```{r n02, echo=FALSE}
+ggplot(normal02, aes(x=x)) + 
+    stat_density(alpha=0.5) +
+    theme(axis.title.x = element_blank(),  axis.title.y = element_blank())
+```
+
+## N(1,1) Density
+
+```{r n11, echo=FALSE}
+ggplot(normal11, aes(x=x)) + 
+    stat_density(alpha=0.5) +
+    theme(axis.title.x = element_blank(),  axis.title.y = element_blank())
+```
+
+## N(0,1), N(0,2), N(1,1) Density
+
+```{r n01n02n11, echo=FALSE}
+    ggplot(normal01, aes(x=x)) + 
+    stat_density(alpha=0.5) +
+    stat_density(data=normal02, alpha=0.5) +
+    stat_density(data=normal11, alpha=0.5) +
+    theme(axis.title.x = element_blank(),  axis.title.y = element_blank())
+```

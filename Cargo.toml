@@ -2,3 +2,6 @@
 name = "kolmogorov-smirnov"
 version = "0.1.0"
 authors = ["docrualaoich"]
+
+[dependencies]
+rand = "0.3.12"
