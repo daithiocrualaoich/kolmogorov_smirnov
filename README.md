@@ -39,7 +39,7 @@ described earlier.
 To run this command directly in the Docker container without the intermediate
 shell, use:
 
-    docker run -t -v "$(pwd):/statistics" --workdir=/statistics statistics cargo test
+    docker run -v "$(pwd):/statistics" --workdir=/statistics statistics cargo test
 
 
 Building the Documentation
@@ -60,7 +60,7 @@ The Docker container provides an installation of Python, Sphinx, and LaTeX
 required to do this build. To make the documentation directly in container
 without an intermediate shell, use:
 
-    docker run -t -v "$(pwd):/statistics" --workdir=/statistics/doc statistics make clean html
+    docker run -v "$(pwd):/statistics" --workdir=/statistics/doc statistics make clean html
 
 The compiled document is written to the shared location and is available on the
 host machine under `doc/_build`. It is published at
@@ -97,7 +97,7 @@ publication.
 
 To regenerate the diagrams, run the following.
 
-    docker run -it -v "$(pwd):/statistics" --workdir=/statistics/dat statistics R -e "rmarkdown::render('images.Rmd')"
+    docker run -v "$(pwd):/statistics" --workdir=/statistics/dat statistics R -e "rmarkdown::render('images.Rmd')"
 
 
 License
