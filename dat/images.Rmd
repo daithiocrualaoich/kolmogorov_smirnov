@@ -17,38 +17,62 @@ colnames(normal02) <- c("x")
 
 normal11 <- read.table("normal_1_1.tsv", sep="\t", header=FALSE)
 colnames(normal11) <- c("x")
+
+http <- read.table("http.tsv", sep="\t", header=TRUE)
+colnames(http) <- c("ctime", "dtime", "ttime", "wait")
+http$ctime <- as.numeric(as.character(http$ctime))
+http$dtime <- as.numeric(as.character(http$dtime))
+http$ttime <- as.numeric(as.character(http$ttime))
+http$wait <- as.numeric(as.character(http$wait))
+http$idx <- 1:nrow(http)
 ```
 
 ## N(0,1) Density
 
 ```{r n01, echo=FALSE, }
-ggplot(normal01, aes(x=x)) + 
-    stat_density(alpha=0.5) +
-    theme(axis.title.x = element_blank(),  axis.title.y = element_blank())
+ggplot(normal01, aes(x=x)) +
+  stat_density(alpha=0.5) +
+  theme(axis.title.x = element_blank(),  axis.title.y = element_blank())
 ```
 
 ## N(0,2) Density
 
 ```{r n02, echo=FALSE}
-ggplot(normal02, aes(x=x)) + 
-    stat_density(alpha=0.5) +
-    theme(axis.title.x = element_blank(),  axis.title.y = element_blank())
+ggplot(normal02, aes(x=x)) +
+  stat_density(alpha=0.5) +
+  theme(axis.title.x = element_blank(),  axis.title.y = element_blank())
 ```
 
 ## N(1,1) Density
 
 ```{r n11, echo=FALSE}
-ggplot(normal11, aes(x=x)) + 
-    stat_density(alpha=0.5) +
-    theme(axis.title.x = element_blank(),  axis.title.y = element_blank())
+ggplot(normal11, aes(x=x)) +
+  stat_density(alpha=0.5) +
+  theme(axis.title.x = element_blank(),  axis.title.y = element_blank())
 ```
 
 ## N(0,1), N(0,2), N(1,1) Density
 
 ```{r n01n02n11, echo=FALSE}
-    ggplot(normal01, aes(x=x)) + 
-    stat_density(alpha=0.5) +
-    stat_density(data=normal02, alpha=0.5) +
-    stat_density(data=normal11, alpha=0.5) +
-    theme(axis.title.x = element_blank(),  axis.title.y = element_blank())
+ggplot(normal01, aes(x=x)) +
+  stat_density(alpha=0.5) +
+  stat_density(data=normal02, alpha=0.5) +
+  stat_density(data=normal11, alpha=0.5) +
+  theme(axis.title.x = element_blank(),  axis.title.y = element_blank())
+```
+
+## HTTP Timeseries
+
+```{r http-timeseries, echo=FALSE}
+ggplot(http, aes(x=idx, y=ttime)) +
+  geom_line(alpha=0.5) +
+  theme(axis.title.x = element_blank(),  axis.title.y = element_blank())
+```
+
+## HTTP Density
+
+```{r http-density, echo=FALSE}
+ggplot(http, aes(x=ttime)) +
+  stat_density(alpha=0.5) +
+  theme(axis.title.x = element_blank(),  axis.title.y = element_blank())
 ```
