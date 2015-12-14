@@ -4,6 +4,7 @@
 *.dll
 *.exe
 target
+Cargo.lock
 _build
 *.iml
 .idea

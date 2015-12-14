@@ -1,7 +1,24 @@
 [package]
 name = "kolmogorov-smirnov"
+description = "Implementation of the Kolmogorov-Smirnov statistical test as a Rust library."
 version = "0.1.0"
-authors = ["docrualaoich"]
+homepage = "http://daithiocrualaoich.github.io/kolmogorov-smirnov"
+repository = "https://github.com/daithiocrualaoich/kolmogorov-smirnov"
+authors = ["Daithi O Crualaoich <daithi.ocrualaoich@gmail.com>"]
+license = "Apache-2.0"
+keywords = ["statistics"]
+exclude = [
+  ".dockerignore",
+  ".gitignore",
+  ".travis.yml",
+  "Cargo.lock",
+  "Dockerfile",
+  "dat/*",
+  "doc/*",
+]
+
+[[bin]]
+name = "normal"
 
 [dependencies]
 rand = "0.3.12"
