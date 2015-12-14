@@ -1,5 +1,6 @@
 ```{r, include=FALSE}
 require(ggplot2)
+require(scales)
 
 knitr::opts_chunk$set(fig.path='../doc/images/')
 knitr::opts_chunk$set(out.width = '400px')
@@ -25,6 +26,8 @@ http$dtime <- as.numeric(as.character(http$dtime))
 http$ttime <- as.numeric(as.character(http$ttime))
 http$wait <- as.numeric(as.character(http$wait))
 http$idx <- 1:nrow(http)
+
+twtr <- read.table("twtr.tsv", sep="\t", header=TRUE)
 ```
 
 ## N(0,1) Density
@@ -32,7 +35,8 @@ http$idx <- 1:nrow(http)
 ```{r n01, echo=FALSE, }
 ggplot(normal01, aes(x=x)) +
   stat_density(alpha=0.5) +
-  theme(axis.title.x = element_blank(),  axis.title.y = element_blank())
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
 ```
 
 ## N(0,2) Density
@@ -40,7 +44,8 @@ ggplot(normal01, aes(x=x)) +
 ```{r n02, echo=FALSE}
 ggplot(normal02, aes(x=x)) +
   stat_density(alpha=0.5) +
-  theme(axis.title.x = element_blank(),  axis.title.y = element_blank())
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
 ```
 
 ## N(1,1) Density
@@ -48,7 +53,8 @@ ggplot(normal02, aes(x=x)) +
 ```{r n11, echo=FALSE}
 ggplot(normal11, aes(x=x)) +
   stat_density(alpha=0.5) +
-  theme(axis.title.x = element_blank(),  axis.title.y = element_blank())
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
 ```
 
 ## N(0,1), N(0,2), N(1,1) Density
@@ -58,7 +64,8 @@ ggplot(normal01, aes(x=x)) +
   stat_density(alpha=0.5) +
   stat_density(data=normal02, alpha=0.5) +
   stat_density(data=normal11, alpha=0.5) +
-  theme(axis.title.x = element_blank(),  axis.title.y = element_blank())
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
 ```
 
 ## HTTP Timeseries
@@ -66,7 +73,8 @@ ggplot(normal01, aes(x=x)) +
 ```{r http-timeseries, echo=FALSE}
 ggplot(http, aes(x=idx, y=ttime)) +
   geom_line(alpha=0.5) +
-  theme(axis.title.x = element_blank(),  axis.title.y = element_blank())
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
 ```
 
 ## HTTP Density
@@ -74,5 +82,44 @@ ggplot(http, aes(x=idx, y=ttime)) +
 ```{r http-density, echo=FALSE}
 ggplot(http, aes(x=ttime)) +
   stat_density(alpha=0.5) +
-  theme(axis.title.x = element_blank(),  axis.title.y = element_blank())
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## TWTR Opening Price Timeseries
+
+```{r twtr-open-timeseries, echo=FALSE}
+ggplot(twtr, aes(x=timestamp, y=open)) +
+  geom_line(alpha=0.5) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## TWTR Opening Price Density
+
+```{r twtr-open-density, echo=FALSE}
+ggplot(twtr, aes(x=open)) +
+  stat_density(alpha=0.5) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## TWTR Volume Timeseries
+
+```{r twtr-volume-timeseries, echo=FALSE}
+ggplot(twtr, aes(x=timestamp, y=volume)) +
+  geom_line(alpha=0.5) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## TWTR Volume Density
+
+```{r twtr-volume-density, echo=FALSE}
+ggplot(twtr, aes(x=volume)) +
+  stat_density(alpha=0.5) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  # Thousands commas on x axis for large integer trading volumes values.
+  scale_x_continuous(labels=comma) +
+  scale_y_continuous(labels=comma)
 ```

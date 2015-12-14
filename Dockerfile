@@ -54,6 +54,7 @@ RUN     echo 'install.packages(c("markdown"), repos="http://cran.r-project.org",
 RUN     echo 'install.packages(c("knitr"), repos="http://cran.r-project.org", dependencies=TRUE)' | R --vanilla
 RUN     echo 'install.packages(c("Cairo"), repos="http://cran.r-project.org", dependencies=TRUE)' | R --vanilla
 RUN     echo 'install.packages(c("ggplot2"), repos="http://cran.r-project.org", dependencies=TRUE)' | R --vanilla
+RUN     echo 'install.packages(c("scales"), repos="http://cran.r-project.org", dependencies=TRUE)' | R --vanilla
 
 
 ################################################################################

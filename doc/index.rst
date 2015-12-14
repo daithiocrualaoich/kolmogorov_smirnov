@@ -185,3 +185,99 @@ distributions that are fruitful to work with and demonstrates a significant
 utility of the Kolmogorov-Smirnov test.
 
 .. image:: images/http-density-1.png
+
+Note there is a much larger horizontal axis range in this graph. This has the
+effect of compressing the visual area under the graph relative to the other
+dataset density plots.
+
+Don't let this trick you, though. The y axis values are smaller than in the
+other graphs but there is far more horizontal axis support to compensate. The
+definition of a probability density means that the area under the graph in all
+the density plots must sum to 1.
+
+Twitter, Inc. Stock Price
+~~~~~~~~~~~~~~~~~~~~~~~~~
+The final dataset is a historical stock market sample. The following returns a
+14 day dump of minute granularity stock price data for Twitter, Inc. from Google
+Finance.
+
+.. sourcecode:: bash
+
+    wget -O twtr.dat 'http://www.google.com/finance/getprices?i=60&p=14d&f=d,c,h,l,o,v&q=TWTR'
+
+The options in the call specify:
+
+* `i=60`: Sample interval in seconds, i.e. get per-minute data. The minimum
+  sample interval available is 60 seconds.
+* `p=14d`: Show data for the previous 14 days.
+* `f=d,c,h,l,o,v`: Include columns in the result for sample interval start date,
+  sample interval closing price, sample interval high price value, sample
+  interval low price value, sample interval opening price, and sample interval
+  trade count, i.e. volume.
+* `q=TWTR`: Query data for the TWTR stock symbol.
+
+After the header block in the response, the sample data looks like:
+
+::
+
+    a1448289000,26.11,26.11,26.11,26.11,500
+    1,26.17,26.17,26.12,26.13,700
+    2,26.25,26.25,26.14,26.14,191266
+    3,26.14,26.27,26.13,26.21,89148
+    4,26.01,26.15,26.01,26.135,36535
+
+Lines that start with an ``a`` character include an absolute timestamp value.
+Otherwise, the timestamp field value is an offset and must be added to timestamp
+value in the last previous absolute timestamp line.
+
+The following Awk script truncates the header block and folds the timestamp
+offsets into absolute timestamp values.
+
+.. sourcecode:: bash
+
+    tail +8 twtr.dat | awk '
+      BEGIN {
+        FS=","; OFS="\t"
+        print "timestamp","close","high","low","open","volume"
+      } {
+        if (substr($1,0,1) == "a") {
+          $1 = substr($1,2)
+          base = 0 + $1
+        } else {
+          $1 = base + (60 * $1)
+        }
+
+        print $0
+      }' > twtr.tsv
+
+The output TSV file is available as ``dat/twtr.tsv`` in the
+`Github repository <https://github.com/daithiocrualaoich/kolmogorov-smirnov>`_.
+
+A supplementary dataset consisting of a single day was collected for comparison
+purposes and is available as ``dat/twtr.1.tsv``. It was processed identically to
+``dat/twtr.tsv``. The collection command was:
+
+.. sourcecode:: bash
+
+    wget -O twtr.1.dat 'http://www.google.com/finance/getprices?i=60&p=1d&f=d,c,h,l,o,v&q=TWTR'
+
+Trading hours on the New York Stock Exchange are weekdays 9.30am to 4pm. This
+results in long horizontal line segments for missing values in the timeseries
+plot for interval opening prices. These correspond to the overnight and weekend
+market close periods.
+
+.. image:: images/twtr-open-timeseries-1.png
+
+The following is the opening price timeseries density plot.
+
+.. image:: images/twtr-open-density-1.png
+
+The missing value graph artifact is more pronounced in the trading volume
+timeseries. The lines joining the trading day regions can be disregarded.
+
+.. image:: images/twtr-volume-timeseries-1.png
+
+Finally, the trading volume density plot looks surprisingly structured,
+congregating near the 17,000 trades/minute rate.
+
+.. image:: images/twtr-volume-density-1.png
