@@ -22,3 +22,6 @@ name = "normal"
 
 [dependencies]
 rand = "0.3.12"
+
+[dev-dependencies]
+quickcheck = "0.2"
