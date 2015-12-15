@@ -11,6 +11,132 @@ The code and examples here are available on
 `Github <https://github.com/daithiocrualaoich/kolmogorov-smirnov>`_.
 
 
+A Field Manual for Rust
+-----------------------
+`Rust`_ is a Mozilla sponsored project to create a safe, fast systems language.
+
+.. _Rust: https://www.rust-lang.org
+
+Why? There is a entire free
+`O'Reilly book <http://www.oreilly.com/programming/free/files/why-rust.pdf>`_
+on exactly this question but the reasons include:
+
+* Robust memory management. It is not possible to deference null or dangling
+  pointers in Rust.
+* Improved security, reducing the incidence of flaws like buffer overflow
+  exploits.
+* A light runtime, no garbage collection, and overhead means Rust is convenient
+  to embed in other languages and platforms like Ruby, Python, and Node.
+* Modern language features.
+
+Rust is capable of very serious projects. The current flagship Rust project, for
+instance, is `Servo`_, a browser engine under open source development with
+contributions from Mozilla and Samsung.
+
+.. _Servo: https://servo.org
+
+The best introduction to Rust is the `Rust Book`_. But also read Steve Klabnik's
+`alternative introdution to Rust`_ for the upfront no-nonsense dive into memory
+ownership, the crux concept for Rust beginners.
+
+.. _Rust Book: https://doc.rust-lang.org/book
+.. _alternative introdution to Rust: http://words.steveklabnik.com/a-new-introduction-to-rust
+
+Those in a hurry can quickstart with these slide decks:
+
+* `Dimiter Petrov, Romain Ruetschi <http://hackepfl.github.io/rust-workshop-slides/slides.html>`_
+* `Danilo Bargen <https://speakerdeck.com/dbrgn/intro-to-rust>`_
+
+Two must-read learning resources are `24 Days of Rust`_, a charming tour around
+the libraries and world of Rust, and `ArcadeRS`_, a tutorial via the medium of
+video games.
+
+.. _24 Days of Rust: http://zsiciarz.github.io/24daysofrust
+.. _ArcadeRS: http://jadpole.github.io/arcaders/arcaders-1-0
+
+And finally, if Servo has interested you in the idea of writing a browser engine
+in Rust, then `Let's build a browser engine!`_ is the series for you. It walks
+through writing a simple HTML rendering engine in Rust.
+
+.. _Let's build a browser engine!: http://limpet.net/mbrubeck/2014/08/08/toy-layout-engine-1.html
+
+Moral Support for Learning the Memory Rules
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+There is no pretending otherwise, the Road to Rust is not royal. The Rust memory
+rules about lifetime, ownership, and borrowing are especially hard to learn.
+
+It probably doesn't much feel like it but Rust is really trying to help us with
+these rules. And to be fair to Rust, it hasn't segfaulted me so far.
+
+But that is not much comfort when the compiler won't build your code and you
+have no idea why. The best advice is probably to read as much about the Rust
+memory rules as you can and to keep reading about them over and over until they
+start to make some sense.
+
+Adherence to the rules provides the compiler with invariant guarantees that can
+be used to construct a proof of memory safety. In practical terms, though, the
+rationale for these rules is unimportant. What is necessary is to find a way to
+work with them so that your programmes compile.
+
+Keep at it. It takes a long time but eventually it does all become clearer.
+
+Niche Observations
+~~~~~~~~~~~~~~~~~~
+This section is a random sample of Rust arcana that interested me. Nothing here
+that doesn't interest you is worth troubling too much with and you should skip
+on past.
+
+`Travis CI`_ has excellent support for building Rust projects, including with
+the beta, and nightly versions. It is simple to set up too by configuring a
+``travis.yml`` according to the
+`Travis documentation <https://docs.travis-ci.com/user/languages/rust>`_. The
+Travis CI build for this project, for instance, is
+`here <https://travis-ci.org/daithiocrualaoich/kolmogorov-smirnov>`_.
+
+.. _Travis CI: https://travis-ci.org
+
+Rust has a formatter in `rustfmt`_ and a lint in `rust-clippy`_. The formatter
+is a simple install using ``cargo install`` and provides a binary command. The
+lint requires more integration into your project, and currently also needs the
+nightly version of Rust for plugin support. Both projects are great for helping
+Rust newcomers.
+
+.. _rustfmt: https://github.com/rust-lang-nursery/rustfmt
+.. _rust-clippy: https://github.com/Manishearth/rust-clippy
+
+Foreign Function Interface is an area where Rust excels. The absence of a large
+runtime means Rust is great for embedding in other languages and it has a wide
+range as a C replacement in writing modules for Python, Ruby, Node, etc. See the
+`Rust Book introduction <https://doc.rust-lang.org/book/rust-inside-other-languages.html>`_
+for a demonstration of how easy it is call Rust from other languages.
+`Day 23 of Rust <https://zsiciarz.github.io/24daysofrust/book/day23.html>`_ and
+the `Rust FFI Omnibus`_ are additional resources for Rust FFI.
+
+.. _Rust FFI Omnibus: http://jakegoulding.com/rust-ffi-omnibus
+
+Rust is being used experimentally for embedded development. `Zinc`_ is work on
+building a realtime operating system for ARM using Rust primarily, and the
+following are posts about building software for embedded devices directly using
+Rust.
+
+* `Rust bare metal on ARM microcontroller`_.
+* `Embedded Rust Right Now!`_
+
+.. _Zinc: http://zinc.rs
+.. _Rust bare metal on ARM microcontroller: http://antoinealb.net/programming/2015/05/01/rust-on-arm-microcontroller.html
+.. _Embedded Rust Right Now!: http://spin.atomicobject.com/2015/02/20/rust-language-c-embedded
+
+And relatedly, `Rust on Raspberry Pi`_ is a guide to cross-compiling Rust code
+for the Raspberry Pi.
+
+.. _Rust on Raspberry Pi: https://github.com/Ogeon/rust-on-raspberry-pi/
+
+Rust considers the code snippets in your project documentation as tests and
+makes a point of compiling them. This helps a little to keep your documentation
+in sync with the code but it is a shock the first time you get a compiler error
+for a documentation code snippet and it takes you ages to find it.
+
+
 Datasets
 --------
 Statistical tests are more fun if you have datasets to run them over.
