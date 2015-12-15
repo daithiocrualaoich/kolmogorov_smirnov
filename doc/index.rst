@@ -8,7 +8,7 @@ A visit to a data and statistical technique useful to software engineers. We
 learn about some Rust too along the way.
 
 The code and examples here are available on
-`Github <https://github.com/daithiocrualaoich/kolmogorov-smirnov>`_.
+`Github <https://github.com/daithiocrualaoich/kolmogorov_smirnov>`_.
 
 
 A Field Manual for Rust
@@ -91,7 +91,7 @@ the beta, and nightly versions. It is simple to set up too by configuring a
 ``travis.yml`` according to the
 `Travis documentation <https://docs.travis-ci.com/user/languages/rust>`_. The
 Travis CI build for this project, for instance, is
-`here <https://travis-ci.org/daithiocrualaoich/kolmogorov-smirnov>`_.
+`here <https://travis-ci.org/daithiocrualaoich/kolmogorov_smirnov>`_.
 
 .. _Travis CI: https://travis-ci.org
 
@@ -168,7 +168,7 @@ provide the standard deviation value.
 
     let x = normal.ind_sample(&mut rng);
 
-The ``kolmogorov-smirnov`` library includes a binary for generating sequences of
+The ``kolmogorov_smirnov`` library includes a binary for generating sequences of
 independently distributed Normal deviates. It can be called with the following
 usage.
 
@@ -181,7 +181,7 @@ the output.
 
 Sequences from :math:`N(0, 1)`, :math:`N(0, 2)`, and :math:`N(1, 1)` are
 included in the
-`Github repository <https://github.com/daithiocrualaoich/kolmogorov-smirnov>`_.
+`Github repository <https://github.com/daithiocrualaoich/kolmogorov_smirnov>`_.
 
 :math:`N(0, 2)` is largely included just to be deliberately annoying,
 calculating :math:`\sqrt{2}` and drawing attention to the limitations of the
@@ -248,7 +248,7 @@ A timeout or significant failure can trash the test completely, so it is more
 robust to collect the data in blocks of 256 requests and combine the results.
 This was done to collect some supplementary data for comparison purposes and is
 available as ``dat/http.1.tsv`` through ``dat/http.4.tsv`` in the
-`Github repository <https://github.com/daithiocrualaoich/kolmogorov-smirnov>`_.
+`Github repository <https://github.com/daithiocrualaoich/kolmogorov_smirnov>`_.
 The primary dataset is ``dat/http.tsv``.
 
 .. sourcecode:: bash
@@ -377,7 +377,7 @@ offsets into absolute timestamp values.
       }' > twtr.tsv
 
 The output TSV file is available as ``dat/twtr.tsv`` in the
-`Github repository <https://github.com/daithiocrualaoich/kolmogorov-smirnov>`_.
+`Github repository <https://github.com/daithiocrualaoich/kolmogorov_smirnov>`_.
 
 A supplementary dataset consisting of a single day was collected for comparison
 purposes and is available as ``dat/twtr.1.tsv``. It was processed identically to

@@ -1,9 +1,9 @@
 [package]
-name = "kolmogorov-smirnov"
+name = "kolmogorov_smirnov"
 description = "Implementation of the Kolmogorov-Smirnov statistical test as a Rust library."
 version = "0.1.0"
-homepage = "http://daithiocrualaoich.github.io/kolmogorov-smirnov"
-repository = "https://github.com/daithiocrualaoich/kolmogorov-smirnov"
+homepage = "http://daithiocrualaoich.github.io/kolmogorov_smirnov"
+repository = "https://github.com/daithiocrualaoich/kolmogorov_smirnov"
 authors = ["Daithi O Crualaoich <daithi.ocrualaoich@gmail.com>"]
 license = "Apache-2.0"
 keywords = ["statistics"]

@@ -1,8 +1,8 @@
-[![Build Status](https://travis-ci.org/daithiocrualaoich/kolmogorov-smirnov.svg?branch=master)](https://travis-ci.org/daithiocrualaoich/kolmogorov-smirnov)
+[![Build Status](https://travis-ci.org/daithiocrualaoich/kolmogorov_smirnov.svg?branch=master)](https://travis-ci.org/daithiocrualaoich/kolmogorov_smirnov)
 
 Implementation of the Kolmogorov-Smirnov statistical test as a Rust library.
 Read an introduction about this project, Rust, and the Kolmogorov-Smirnov test
-[here](http://daithiocrualaoich.github.io/kolmogorov-smirnov).
+[here](http://daithiocrualaoich.github.io/kolmogorov_smirnov).
 
 
 Developing Kolmogorov-Smirnov
@@ -64,7 +64,7 @@ without an intermediate shell, use:
 
 The compiled document is written to the shared location and is available on the
 host machine under `doc/_build`. It is published at
-http://daithiocrualaoich.github.io/kolmogorov-smirnov using [Github Pages].
+http://daithiocrualaoich.github.io/kolmogorov_smirnov using [Github Pages].
 
 [Github Pages]: https://pages.github.com
 
@@ -74,8 +74,8 @@ because the `master` and `gh-pages` branches are very dissimilar and switching
 between them with uncommitted changes is tedious.
 
     cd ..
-    cp -r kolmogorov-smirnov kolmogorov-smirnov-ghpages
-    cd kolmogorov-smirnov-ghpages
+    cp -r kolmogorov_smirnov kolmogorov_smirnov_ghpages
+    cd kolmogorov_smirnov_ghpages
     git reset --hard HEAD
     git clean -fdx
     git checkout gh-pages
@@ -83,7 +83,7 @@ between them with uncommitted changes is tedious.
 Now remake the contents of this branch from the recently generated document.
 
     rm -fr *
-    cp -r ../kolmogorov-smirnov/doc/_build/html/* .
+    cp -r ../kolmogorov_smirnov/doc/_build/html/* .
 
 A `.nojekyll` file is also needed in order to prevent Github from ignoring the
 Sphinx CSS files.
