@@ -61,7 +61,7 @@ RUN     echo 'install.packages(c("scales"), repos="http://cran.r-project.org", d
 # Rust
 ################################################################################
 
-ENV     rust_version    1.4.0-x86_64-unknown-linux-gnu
+ENV     rust_version    1.5.0-x86_64-unknown-linux-gnu
 RUN     wget -q https://static.rust-lang.org/dist/rust-${rust_version}.tar.gz
 RUN     tar xzf rust-${rust_version}.tar.gz
 RUN     rust-${rust_version}/install.sh --without=rust-docs
