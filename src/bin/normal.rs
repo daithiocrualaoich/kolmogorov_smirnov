@@ -19,9 +19,11 @@ use rand::distributions::{Normal, IndependentSample};
 fn main() {
   let args: Vec<String> = env::args().collect();
 
-  let n: u32 = args[1].parse::<u32>().unwrap();
-  let mean: f64 = args[2].parse::<f64>().unwrap();
-  let variance: f64 = args[3].parse::<f64>().unwrap();
+  let n: u32 = args[1].parse().ok().expect("<num_deviates> must be an integer.");
+  let mean: f64 = args[2].parse().ok().expect("<mean> must be a floating point number.");
+  let variance: f64 = args[3].parse().ok().expect("<variance> must be a floating point number.");
+
+  assert!(n > 0 && variance.is_sign_positive());
 
   let mut rng = rand::thread_rng();
   let normal = Normal::new(mean, variance.sqrt());
