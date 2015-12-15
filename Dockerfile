@@ -66,3 +66,5 @@ RUN     wget -q https://static.rust-lang.org/dist/rust-${rust_version}.tar.gz
 RUN     tar xzf rust-${rust_version}.tar.gz
 RUN     rust-${rust_version}/install.sh --without=rust-docs
 RUN     rm -fr rust-${rust_version}.tar.gz rust-${rust_version}
+
+RUN     cargo install --git https://github.com/rust-lang-nursery/rustfmt --root /usr
