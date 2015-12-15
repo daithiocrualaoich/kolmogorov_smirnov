@@ -12,12 +12,15 @@ knitr::opts_chunk$set(dpi=200)
 ```{r load, echo=FALSE}
 normal01 <- read.table("normal_0_1.tsv", sep="\t", header=FALSE)
 colnames(normal01) <- c("x")
+normal01$ecdf <- ecdf(normal01$x)(normal01$x)
 
 normal02 <- read.table("normal_0_2.tsv", sep="\t", header=FALSE)
 colnames(normal02) <- c("x")
+normal02$ecdf <- ecdf(normal02$x)(normal02$x)
 
 normal11 <- read.table("normal_1_1.tsv", sep="\t", header=FALSE)
 colnames(normal11) <- c("x")
+normal11$ecdf <- ecdf(normal11$x)(normal11$x)
 
 http <- read.table("http.tsv", sep="\t", header=TRUE)
 colnames(http) <- c("ctime", "dtime", "ttime", "wait")
@@ -26,8 +29,11 @@ http$dtime <- as.numeric(as.character(http$dtime))
 http$ttime <- as.numeric(as.character(http$ttime))
 http$wait <- as.numeric(as.character(http$wait))
 http$idx <- 1:nrow(http)
+http$ttime_ecdf <- ecdf(http$ttime)(http$ttime)
 
 twtr <- read.table("twtr.tsv", sep="\t", header=TRUE)
+twtr$open_ecdf <- ecdf(twtr$open)(twtr$open)
+twtr$volume_ecdf <- ecdf(twtr$volume)(twtr$volume)
 ```
 
 ## N(0,1) Density
@@ -35,6 +41,15 @@ twtr <- read.table("twtr.tsv", sep="\t", header=TRUE)
 ```{r n01, echo=FALSE, }
 ggplot(normal01, aes(x=x)) +
   stat_density(alpha=0.5) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## N(0,1) Empirical Cumulative Distribution Function
+
+```{r n01ecdf, echo=FALSE, }
+ggplot(normal01, aes(x=x, y=ecdf)) +
+  geom_line(alpha=0.5, size=1) +
   theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
   scale_y_continuous(labels=comma)
 ```
@@ -48,11 +63,29 @@ ggplot(normal02, aes(x=x)) +
   scale_y_continuous(labels=comma)
 ```
 
+## N(0,2) Empirical Cumulative Distribution Function
+
+```{r n02ecdf, echo=FALSE, }
+ggplot(normal02, aes(x=x, y=ecdf)) +
+  geom_line(alpha=0.5, size=1) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
 ## N(1,1) Density
 
 ```{r n11, echo=FALSE}
 ggplot(normal11, aes(x=x)) +
   stat_density(alpha=0.5) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## N(1,1) Empirical Cumulative Distribution Function
+
+```{r n11ecdf, echo=FALSE, }
+ggplot(normal11, aes(x=x, y=ecdf)) +
+  geom_line(alpha=0.5, size=1) +
   theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
   scale_y_continuous(labels=comma)
 ```
@@ -64,6 +97,36 @@ ggplot(normal01, aes(x=x)) +
   stat_density(alpha=0.5) +
   stat_density(data=normal02, alpha=0.5) +
   stat_density(data=normal11, alpha=0.5) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## N(0,1), N(0,2) Empirical Cumulative Distribution Function
+
+```{r n01n02ecdf, echo=FALSE}
+ggplot(normal01, aes(x=x, y=ecdf)) +
+  geom_line(alpha=0.5, size=1) +
+  geom_line(data=normal02, alpha=0.5, size=1) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## N(0,1), N(1,1) Empirical Cumulative Distribution Function
+
+```{r n01n11ecdf, echo=FALSE}
+ggplot(normal01, aes(x=x, y=ecdf)) +
+  geom_line(alpha=0.5, size=1) +
+  geom_line(data=normal11, alpha=0.5, size=1) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## N(0,2), N(1,1) Empirical Cumulative Distribution Function
+
+```{r n02n11ecdf, echo=FALSE}
+ggplot(normal02, aes(x=x, y=ecdf)) +
+  geom_line(alpha=0.5, size=1) +
+  geom_line(data=normal11, alpha=0.5, size=1) +
   theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
   scale_y_continuous(labels=comma)
 ```
@@ -86,6 +149,15 @@ ggplot(http, aes(x=ttime)) +
   scale_y_continuous(labels=comma)
 ```
 
+## HTTP Empirical Cumulative Distribution Function
+
+```{r http-ecdf, echo=FALSE, }
+ggplot(http, aes(x=ttime, y=ttime_ecdf)) +
+  geom_line(alpha=0.5, size=1) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
 ## TWTR Opening Price Timeseries
 
 ```{r twtr-open-timeseries, echo=FALSE}
@@ -100,6 +172,15 @@ ggplot(twtr, aes(x=timestamp, y=open)) +
 ```{r twtr-open-density, echo=FALSE}
 ggplot(twtr, aes(x=open)) +
   stat_density(alpha=0.5) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## TWTR Opening Price Empirical Cumulative Distribution Function
+
+```{r twtr-open-ecdf, echo=FALSE, }
+ggplot(twtr, aes(x=open, y=open_ecdf)) +
+  geom_line(alpha=0.5, size=1) +
   theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
   scale_y_continuous(labels=comma)
 ```
@@ -121,5 +202,14 @@ ggplot(twtr, aes(x=volume)) +
   theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
   # Thousands commas on x axis for large integer trading volumes values.
   scale_x_continuous(labels=comma) +
+  scale_y_continuous(labels=comma)
+```
+
+## TWTR Volume Empirical Cumulative Distribution Function
+
+```{r twtr-volume-ecdf, echo=FALSE, }
+ggplot(twtr, aes(x=volume, y=volume_ecdf)) +
+  geom_line(alpha=0.5, size=1) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
   scale_y_continuous(labels=comma)
 ```
