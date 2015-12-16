@@ -1,4 +1,5 @@
-/// Empirical cumulative distribution function.
+//! Empirical cumulative distribution function.
+
 pub struct Ecdf<T: Ord> {
     samples: Vec<T>,
     length: usize,
@@ -52,149 +53,152 @@ impl<T: Ord + Clone> Ecdf<T> {
     /// println!("{}", ecdf.value(4));
     /// ```
     pub fn value(&self, t: T) -> f64 {
-        let mut index = match self.samples.binary_search(&t) {
-            Ok(index) => index,
-            Err(index) => index,
+        let num_samples_leq_t = match self.samples.binary_search(&t) {
+            Ok(mut index) => {
+                // At least one sample is a t and we have the index of it. Need
+                // to walk down the sorted samples until at last that == t.
+                while index + 1 < self.length && self.samples[index + 1] == t {
+                    index += 1;
+                }
+
+                // Compensate for 0-based indexing.
+                index + 1
+            }
+            Err(index) => {
+                // No sample is a t but if we had to put one in it would go at
+                // index. This means all indices to the left have samples < t
+                // and should be counted in the cdf proportion. We must take one
+                // from index to get the last included sample but then we just
+                // have to add one again to account for 0-based indexing.
+                index
+            }
         };
 
-        // Walk down samples until at last index that == t.
-        while index + 1 < self.length && self.samples[index + 1] == t {
-            index += 1;
-        }
-
-        // Compensate for 0-based indexing
-        if index < self.length && self.samples[index] == t {
-            index += 1;
-        }
-
-        (index as f64) / (self.length as f64)
+        num_samples_leq_t as f64 / self.length as f64
     }
 }
 
 #[cfg(test)]
 mod tests {
     extern crate quickcheck;
+    extern crate rand;
 
-    use self::quickcheck::quickcheck;
-    use self::quickcheck::TestResult;
-
+    use self::quickcheck::{quickcheck, TestResult, Arbitrary, Gen};
+    use self::rand::Rng;
     use super::Ecdf;
 
+    /// Wrapper for generating sample data with QuickCheck.
+    ///
+    /// Samples must be non-empty sequences of i64 values.
+    #[derive(Debug, Clone)]
+    struct Samples {
+        vec: Vec<i64>,
+    }
+
+    impl Arbitrary for Samples {
+        fn arbitrary<G: Gen>(g: &mut G) -> Samples {
+            let max = g.size();
+            let size = g.gen_range(1, max);
+            let vec = (0..size).map(|_| Arbitrary::arbitrary(g)).collect();
+
+            Samples { vec: vec }
+        }
+    }
+
     #[test]
-    #[should_panic]
-    fn ecdf_panics_on_empty_sample_set() {
-        let samples: Vec<i64> = vec![];
-        Ecdf::new(&samples);
+    #[should_panic(expected="assertion failed: length > 0")]
+    fn ecdf_panics_on_empty_samples_set() {
+        let xs: Vec<i64> = vec![];
+        Ecdf::new(&xs);
     }
 
     #[test]
     fn ecdf_between_zero_and_one() {
-        fn prop(samples: Vec<i64>, val: i64) -> TestResult {
-            match samples.len() {
-                0 => TestResult::discard(),
-                _ => {
-                    let ecdf = Ecdf::new(&samples);
-                    let actual = ecdf.value(val);
+        fn prop(xs: Samples, val: i64) -> bool {
+            let ecdf = Ecdf::new(&xs.vec);
+            let actual = ecdf.value(val);
 
-                    TestResult::from_bool(0.0 <= actual && actual <= 1.0)
-                }
-            }
+            0.0 <= actual && actual <= 1.0
         }
 
-        quickcheck(prop as fn(Vec<i64>, i64) -> TestResult);
+        quickcheck(prop as fn(Samples, i64) -> bool);
     }
 
     #[test]
     fn ecdf_is_an_increasing_function() {
-        fn prop(samples: Vec<i64>, val: i64) -> TestResult {
-            match samples.len() {
-                0 => TestResult::discard(),
-                _ => {
-                    let ecdf = Ecdf::new(&samples);
-                    let actual = ecdf.value(val);
+        fn prop(xs: Samples, val: i64) -> bool {
+            let ecdf = Ecdf::new(&xs.vec);
+            let actual = ecdf.value(val);
 
-                    TestResult::from_bool(ecdf.value(val - 1) <= actual &&
-                                          actual <= ecdf.value(val + 1))
-                }
-            }
+            ecdf.value(val - 1) <= actual && actual <= ecdf.value(val + 1)
         }
 
-        quickcheck(prop as fn(Vec<i64>, i64) -> TestResult);
+        quickcheck(prop as fn(Samples, i64) -> bool);
     }
 
     #[test]
     fn ecdf_sample_min_minus_one_is_zero() {
-        fn prop(samples: Vec<i64>) -> TestResult {
-            match samples.iter().min() {
-                None => TestResult::discard(),
-                Some(&min) => {
-                    let ecdf = Ecdf::new(&samples);
-                    TestResult::from_bool(ecdf.value(min - 1) == 0.0)
-                }
-            }
+        fn prop(xs: Samples) -> bool {
+            let &min = xs.vec.iter().min().unwrap();
+            let ecdf = Ecdf::new(&xs.vec);
+
+            ecdf.value(min - 1) == 0.0
         }
 
-        quickcheck(prop as fn(Vec<i64>) -> TestResult);
+        quickcheck(prop as fn(Samples) -> bool);
     }
 
     #[test]
     fn ecdf_sample_max_is_one() {
-        fn prop(samples: Vec<i64>) -> TestResult {
-            match samples.iter().max() {
-                None => TestResult::discard(),
-                Some(&max) => {
-                    let ecdf = Ecdf::new(&samples);
-                    TestResult::from_bool(ecdf.value(max) == 1.0)
-                }
-            }
+        fn prop(xs: Samples) -> bool {
+            let &max = xs.vec.iter().max().unwrap();
+            let ecdf = Ecdf::new(&xs.vec);
+
+            ecdf.value(max) == 1.0
         }
 
-        quickcheck(prop as fn(Vec<i64>) -> TestResult);
+        quickcheck(prop as fn(Samples) -> bool);
     }
 
     #[test]
-    fn ecdf_sample_val_is_num_samples_less_than_or_equal_val_div_length() {
-        fn prop(samples: Vec<i64>) -> TestResult {
-            match samples.first() {
-                None => TestResult::discard(),
-                Some(&val) => {
-                    let num_samples = samples.iter()
-                                             .filter(|&&x| x <= val)
-                                             .count();
-                    let expected = (num_samples as f64) / (samples.len() as f64);
+    fn ecdf_sample_val_is_num_samples_leq_val_div_length() {
+        fn prop(xs: Samples) -> bool {
+            let &val = xs.vec.first().unwrap();
+            let num_samples = xs.vec
+                                .iter()
+                                .filter(|&&x| x <= val)
+                                .count();
+            let expected = num_samples as f64 / xs.vec.len() as f64;
 
-                    let ecdf = Ecdf::new(&samples);
+            let ecdf = Ecdf::new(&xs.vec);
 
-                    TestResult::from_bool(ecdf.value(val) == expected)
-                }
-            }
+            ecdf.value(val) == expected
         }
 
-        quickcheck(prop as fn(Vec<i64>) -> TestResult);
+        quickcheck(prop as fn(Samples) -> bool);
     }
 
     #[test]
-    fn ecdf_non_sample_val_is_num_samples_less_than_or_equal_val_div_length() {
-        fn prop(samples: Vec<i64>, val: i64) -> TestResult {
-            let length = samples.len();
+    fn ecdf_non_sample_val_is_num_samples_leq_val_div_length() {
+        fn prop(xs: Samples, val: i64) -> TestResult {
+            let length = xs.vec.len();
 
-            if length == 0 {
-                TestResult::discard()
-            } else if samples.iter().any(|&x| x == val) {
+            if xs.vec.iter().any(|&x| x == val) {
                 // Discard Vec containing val.
-                TestResult::discard()
-            } else {
-                let num_samples = samples.iter()
-                                         .filter(|&&x| x <= val)
-                                         .count();
-                let expected = (num_samples as f64) / (length as f64);
-
-                let ecdf = Ecdf::new(&samples);
-
-                TestResult::from_bool(ecdf.value(val) == expected)
+                return TestResult::discard();
             }
+
+            let num_samples = xs.vec
+                                .iter()
+                                .filter(|&&x| x <= val)
+                                .count();
+            let expected = num_samples as f64 / length as f64;
+
+            let ecdf = Ecdf::new(&xs.vec);
+
+            TestResult::from_bool(ecdf.value(val) == expected)
         }
 
-        quickcheck(prop as fn(Vec<i64>, i64) -> TestResult);
+        quickcheck(prop as fn(Samples, i64) -> TestResult);
     }
 }
