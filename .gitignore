@@ -9,6 +9,7 @@ _build
 *.iml
 .idea
 *~
+*.bk
 .DS_Store
 .RHistory
 *.html
