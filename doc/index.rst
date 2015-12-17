@@ -137,6 +137,61 @@ in sync with the code but it is a shock the first time you get a compiler error
 for a documentation code snippet and it takes you ages to find it.
 
 
+Kolmogorov-Smirnov Test Library
+-------------------------------
+The Kolmogorov-Smirnov test implementation is available as a crate, so it is
+easy to incorporate into your programs. Add the dependency to your
+``Cargo.toml`` file.
+
+::
+
+    [dependencies]
+    kolmogorov_smirnov = "0.1.0"
+
+Then using the test is straightforward, call the ``kolmogorov_smirnov::test``
+function with the two samples to compare and the desired confidence level.
+
+.. sourcecode:: rust
+
+    extern crate kolmogorov_smirnov as ks;
+
+    let xs = vec!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
+    let ys = vec!(12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+    let confidence = 0.95;
+
+    let result = ks::test(&xs, &ys, confidence);
+
+    if !result.is_rejected {
+        // Woot! Samples are from the same distribution with 0.95 confidence.
+    }
+
+The Kolmogorov-Smirnov test as implemented works for any data with a ``Clone``
+and an ``Ord`` trait implementation in Rust. It would be possible, maybe a
+little eccentric, to test two samples of characters, strings or lists.
+
+If you have floating point or integer data to test, you can use the included
+test runners, ``ks_f64.rs`` and ``ks_i32.rs``. These operate on single-column
+headerless data files and test the samples against each other at the 0.95
+confidence level.
+
+.. sourcecode:: bash
+
+    $ cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_0_1.1.tsv
+    Samples are from the same distributions.
+
+    $ cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_1_1.1.tsv
+    Samples are from different distributions.
+
+Testing floating point numbers is a real headache because Rust floating point
+types do not implement the ``Ord`` trait, only the ``PartialOrd`` trait. This
+is because things like ``NaN`` are not comparable and the order cannot be
+total over all values in the datatype.
+
+The test runner for floating point types is implemented with a wrapper type
+that implements a total order, crashing on unorderable elements. This suffices
+in practice since the unorderable elements will break the test anyway.
+
+
 Datasets
 --------
 Statistical tests are more fun if you have datasets to run them over.
@@ -293,12 +348,27 @@ the desired header-retaining sort and column projection.
 .. sourcecode:: bash
 
     cat http.tsv |\
-     awk 'NR == 1; NR > 1 {print $0 | "sort"}' |\
-     cut -f3- \
-     > http.tsv.out
+      awk 'NR == 1; NR > 1 {print $0 | "sort"}' |\
+      cut -f3- \
+      > http.tsv.out
 
 The response time datasets in the Github repository have all been processed like
 this.
+
+To process the headered multi-column data files into a format suitable for
+using with ``ks_i64`` use the following example as a guide:
+
+.. sourcecode:: bash
+
+    tail -n +2 http.tsv |\
+      cut -f3 \
+      > http_ttime.tsv
+
+Then to run the test:
+
+.. sourcecode::bash
+
+    cargo run -q --bin test_t64 dat/http_ttime.tsv dat/http_ttime.1.tsv
 
 The timeseries plot shows a common Internet tale of outliers, failure cases and
 disgrace.

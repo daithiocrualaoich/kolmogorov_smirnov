@@ -5,6 +5,41 @@ Read an introduction about this project, Rust, and the Kolmogorov-Smirnov test
 [here](http://daithiocrualaoich.github.io/kolmogorov_smirnov).
 
 
+Getting Started
+---------------
+The Kolmogorov-Smirnov library is available as a crate, so it is easy to
+incorporate into your programs. Add the dependency to your `Cargo.toml` file.
+
+    [dependencies]
+    kolmogorov_smirnov = "0.1.0"
+
+Using the test is also straightforward, call the `kolmogorov_smirnov::test`
+function with the two samples to compare and the desired confidence level.
+
+    extern crate kolmogorov_smirnov as ks;
+
+    let xs = vec!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
+    let ys = vec!(12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+    let confidence = 0.95;
+
+    let result = ks::test(&xs, &ys, confidence);
+
+    if !result.is_rejected {
+        // Woot! Samples are from the same distribution with 0.95 confidence.
+    }
+
+Alternatively, if you have floating point or integer data to test, you can use
+the included test runners, ``ks_f64.rs`` and ``ks_i32.rs``. These operate on
+single-column headerless data files and test the samples against each other at
+the 0.95 confidence level.
+
+    $ cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_0_1.1.tsv
+    Samples are from the same distributions.
+
+    $ cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_1_1.1.tsv
+    Samples are from different distributions.
+
+
 Developing Kolmogorov-Smirnov
 -----------------------------
 Install the [Rust] development tools on your system if they are not already

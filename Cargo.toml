@@ -20,6 +20,12 @@ exclude = [
 [[bin]]
 name = "normal"
 
+[[bin]]
+name = "ks_f64"
+
+[[bin]]
+name = "ks_i64"
+
 [dependencies]
 rand = "0.3.12"
 
