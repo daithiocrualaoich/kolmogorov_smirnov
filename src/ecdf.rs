@@ -83,57 +83,72 @@ mod tests {
     extern crate quickcheck;
     extern crate rand;
 
-    use self::quickcheck::{quickcheck, TestResult, Arbitrary, Gen};
-    use self::rand::Rng;
+    use self::quickcheck::{Arbitrary, Gen, QuickCheck, Testable, TestResult, StdGen};
+    use std::cmp;
+    use std::usize;
     use super::Ecdf;
+
+    fn check<A: Testable>(f: A) {
+        let g = StdGen::new(rand::thread_rng(), usize::MAX);
+        QuickCheck::new().gen(g).quickcheck(f);
+    }
 
     /// Wrapper for generating sample data with QuickCheck.
     ///
-    /// Samples must be non-empty sequences of i64 values.
+    /// Samples must be non-empty sequences of u64 values.
     #[derive(Debug, Clone)]
     struct Samples {
-        vec: Vec<i64>,
+        vec: Vec<u64>,
     }
 
     impl Arbitrary for Samples {
         fn arbitrary<G: Gen>(g: &mut G) -> Samples {
-            let max = g.size();
+            // Limit size of generated sample set to 1024
+            let max = cmp::min(g.size(), 1024);
+
             let size = g.gen_range(1, max);
-            let vec = (0..size).map(|_| Arbitrary::arbitrary(g)).collect();
+            let vec = (0..size).map(|_| u64::arbitrary(g)).collect();
 
             Samples { vec: vec }
+        }
+
+        fn shrink(&self) -> Box<Iterator<Item = Samples>> {
+            let vec: Vec<u64> = self.vec.clone();
+            let shrunk: Box<Iterator<Item = Vec<u64>>> = vec.shrink();
+
+            Box::new(shrunk.map(|v| Samples { vec: v }))
         }
     }
 
     #[test]
     #[should_panic(expected="assertion failed: length > 0")]
     fn ecdf_panics_on_empty_samples_set() {
-        let xs: Vec<i64> = vec![];
+        let xs: Vec<u64> = vec![];
         Ecdf::new(&xs);
     }
 
     #[test]
     fn ecdf_between_zero_and_one() {
-        fn prop(xs: Samples, val: i64) -> bool {
+        fn prop(xs: Samples, val: u64) -> bool {
             let ecdf = Ecdf::new(&xs.vec);
             let actual = ecdf.value(val);
 
             0.0 <= actual && actual <= 1.0
         }
 
-        quickcheck(prop as fn(Samples, i64) -> bool);
+        check(prop as fn(Samples, u64) -> bool);
     }
 
     #[test]
     fn ecdf_is_an_increasing_function() {
-        fn prop(xs: Samples, val: i64) -> bool {
+        fn prop(xs: Samples, val: u64) -> bool {
             let ecdf = Ecdf::new(&xs.vec);
             let actual = ecdf.value(val);
 
             ecdf.value(val - 1) <= actual && actual <= ecdf.value(val + 1)
         }
 
-        quickcheck(prop as fn(Samples, i64) -> bool);
+        check(prop as fn(Samples, u64) -> bool);
     }
 
     #[test]
@@ -145,7 +160,7 @@ mod tests {
             ecdf.value(min - 1) == 0.0
         }
 
-        quickcheck(prop as fn(Samples) -> bool);
+        check(prop as fn(Samples) -> bool);
     }
 
     #[test]
@@ -157,7 +172,7 @@ mod tests {
             ecdf.value(max) == 1.0
         }
 
-        quickcheck(prop as fn(Samples) -> bool);
+        check(prop as fn(Samples) -> bool);
     }
 
     #[test]
@@ -175,12 +190,12 @@ mod tests {
             ecdf.value(val) == expected
         }
 
-        quickcheck(prop as fn(Samples) -> bool);
+        check(prop as fn(Samples) -> bool);
     }
 
     #[test]
     fn ecdf_non_sample_val_is_num_samples_leq_val_div_length() {
-        fn prop(xs: Samples, val: i64) -> TestResult {
+        fn prop(xs: Samples, val: u64) -> TestResult {
             let length = xs.vec.len();
 
             if xs.vec.iter().any(|&x| x == val) {
@@ -199,6 +214,6 @@ mod tests {
             TestResult::from_bool(ecdf.value(val) == expected)
         }
 
-        quickcheck(prop as fn(Samples, i64) -> TestResult);
+        check(prop as fn(Samples, u64) -> TestResult);
     }
 }

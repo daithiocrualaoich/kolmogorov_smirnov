@@ -155,30 +155,37 @@ mod tests {
     extern crate quickcheck;
     extern crate rand;
 
-    use self::quickcheck::{quickcheck, Arbitrary, Gen};
+    use self::quickcheck::{Arbitrary, Gen, QuickCheck, Testable, StdGen};
     use self::rand::Rng;
     use std::cmp;
+    use std::usize;
 
     use super::test;
     use ecdf::Ecdf;
 
     const EPSILON: f64 = 1e-10;
 
+    fn check<A: Testable>(f: A) {
+        // Need - 1 to ensure space for creating non-overlapping samples.
+        let g = StdGen::new(rand::thread_rng(), usize::MAX - 1);
+        QuickCheck::new().gen(g).quickcheck(f);
+    }
+
     /// Wrapper for generating sample data with QuickCheck.
     ///
-    /// Samples must be sequences of i64 values with more than 12 elements.
+    /// Samples must be sequences of u64 values with more than 12 elements.
     #[derive(Debug, Clone)]
     struct Samples {
-        vec: Vec<i64>,
+        vec: Vec<u64>,
     }
 
     impl Samples {
-        fn min(&self) -> i64 {
+        fn min(&self) -> u64 {
             let &min = self.vec.iter().min().unwrap();
             min
         }
 
-        fn max(&self) -> i64 {
+        fn max(&self) -> u64 {
             let &max = self.vec.iter().max().unwrap();
             max
         }
@@ -191,16 +198,18 @@ mod tests {
 
     impl Arbitrary for Samples {
         fn arbitrary<G: Gen>(g: &mut G) -> Samples {
-            let max = g.size();
+            // Limit size of generated sample set to 1024
+            let max = cmp::min(g.size(), 1024);
+
             let size = g.gen_range(13, max);
-            let vec = (0..size).map(|_| Arbitrary::arbitrary(g)).collect();
+            let vec = (0..size).map(|_| u64::arbitrary(g)).collect();
 
             Samples { vec: vec }
         }
 
         fn shrink(&self) -> Box<Iterator<Item = Samples>> {
-            let vec: Vec<i64> = self.vec.clone();
-            let shrunk: Box<Iterator<Item = Vec<i64>>> = vec.shrink();
+            let vec: Vec<u64> = self.vec.clone();
+            let shrunk: Box<Iterator<Item = Vec<u64>>> = vec.shrink();
 
             Box::new(shrunk.filter(|v| v.len() > 12).map(|v| Samples { vec: v }))
         }
@@ -209,32 +218,32 @@ mod tests {
     #[test]
     #[should_panic(expected="assertion failed: xs.len() > 0 && ys.len() > 0")]
     fn test_panics_on_empty_samples_set() {
-        let xs: Vec<i64> = vec![];
-        let ys: Vec<i64> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+        let xs: Vec<u64> = vec![];
+        let ys: Vec<u64> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
         test(&xs, &ys, 0.95);
     }
 
     #[test]
     #[should_panic(expected="assertion failed: xs.len() > 0 && ys.len() > 0")]
     fn test_panics_on_empty_other_samples_set() {
-        let xs: Vec<i64> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-        let ys: Vec<i64> = vec![];
+        let xs: Vec<u64> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+        let ys: Vec<u64> = vec![];
         test(&xs, &ys, 0.95);
     }
 
     #[test]
     #[should_panic(expected="assertion failed: 0.0 < confidence && confidence < 1.0")]
     fn test_panics_on_confidence_leq_zero() {
-        let xs: Vec<i64> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-        let ys: Vec<i64> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+        let xs: Vec<u64> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+        let ys: Vec<u64> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
         test(&xs, &ys, 0.0);
     }
 
     #[test]
     #[should_panic(expected="assertion failed: 0.0 < confidence && confidence < 1.0")]
     fn test_panics_on_confidence_geq_one() {
-        let xs: Vec<i64> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-        let ys: Vec<i64> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+        let xs: Vec<u64> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+        let ys: Vec<u64> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
         test(&xs, &ys, 1.0);
     }
 
@@ -250,7 +259,7 @@ mod tests {
             }
         }
 
-        quickcheck(prop as fn(Samples, Samples) -> bool);
+        check(prop as fn(Samples, Samples) -> bool);
     }
 
     /// Alternative calculation for the test statistic for the two sample
@@ -291,7 +300,7 @@ mod tests {
             actual == expected
         }
 
-        quickcheck(prop as fn(Samples, Samples) -> bool);
+        check(prop as fn(Samples, Samples) -> bool);
     }
 
     #[test]
@@ -303,7 +312,7 @@ mod tests {
             0.0 <= actual && actual <= 1.0
         }
 
-        quickcheck(prop as fn(Samples, Samples) -> bool);
+        check(prop as fn(Samples, Samples) -> bool);
     }
 
     #[test]
@@ -316,7 +325,7 @@ mod tests {
             result.statistic == 0.0
         }
 
-        quickcheck(prop as fn(Samples) -> bool);
+        check(prop as fn(Samples) -> bool);
     }
 
     #[test]
@@ -330,38 +339,34 @@ mod tests {
             result.statistic == 0.0
         }
 
-        quickcheck(prop as fn(Samples) -> bool);
+        check(prop as fn(Samples) -> bool);
     }
 
     #[test]
-    fn test_statistic_is_one_for_samples_with_no_overlap() {
+    fn test_statistic_is_one_for_samples_with_no_overlap_in_support() {
         fn prop(xs: Samples) -> bool {
             let mut ys = xs.clone();
 
             // Shift ys so that ys.min > xs.max.
-            let delta = xs.max() - xs.min() + 1;
-
-            // Is there always enough room to move up?
-            ys.vec = ys.vec.iter().map(|&y| y + delta).collect();
+            let ys_min = xs.max() + 1;
+            ys.vec = ys.vec.iter().map(|&y| cmp::max(y, ys_min)).collect();
 
             let result = test(&xs.vec, &ys.vec, 0.95);
 
             result.statistic == 1.0
         }
 
-        quickcheck(prop as fn(Samples) -> bool);
+        check(prop as fn(Samples) -> bool);
     }
 
     #[test]
-    fn test_statistic_is_one_half_for_sample_with_non_overlapping_replicate_added() {
+    fn test_statistic_is_one_half_for_sample_with_non_overlapping_in_support_replicate_added() {
         fn prop(xs: Samples) -> bool {
             let mut ys = xs.clone();
 
             // Shift ys so that ys.min > xs.max.
-            let delta = xs.max() - xs.min() + 1;
-
-            // Is there always enough room to move up?
-            ys.vec = ys.vec.iter().map(|&y| y + delta).collect();
+            let ys_min = xs.max() + 1;
+            ys.vec = ys.vec.iter().map(|&y| cmp::max(y, ys_min)).collect();
 
             // Add all the original items back too.
             for &x in xs.vec.iter() {
@@ -373,7 +378,7 @@ mod tests {
             result.statistic == 0.5
         }
 
-        quickcheck(prop as fn(Samples) -> bool);
+        check(prop as fn(Samples) -> bool);
     }
 
     #[test]
@@ -390,7 +395,7 @@ mod tests {
             result.statistic == expected
         }
 
-        quickcheck(prop as fn(Samples) -> bool);
+        check(prop as fn(Samples) -> bool);
     }
 
     #[test]
@@ -407,7 +412,7 @@ mod tests {
             (result.statistic - expected).abs() < EPSILON
         }
 
-        quickcheck(prop as fn(Samples) -> bool);
+        check(prop as fn(Samples) -> bool);
     }
 
     #[test]
@@ -428,7 +433,7 @@ mod tests {
             (result.statistic - expected).abs() < EPSILON
         }
 
-        quickcheck(prop as fn(Samples) -> bool);
+        check(prop as fn(Samples) -> bool);
     }
 
     #[test]
@@ -438,7 +443,7 @@ mod tests {
             let min = xs.min();
             let mut ys = xs.clone();
             for j in 0..n {
-                ys.vec.push(min - (j as i64) - 1);
+                ys.vec.push(min - (j as u64) - 1);
             }
 
             let result = test(&xs.vec, &ys.vec, 0.95);
@@ -447,7 +452,7 @@ mod tests {
             result.statistic == expected
         }
 
-        quickcheck(prop as fn(Samples, u8) -> bool);
+        check(prop as fn(Samples, u8) -> bool);
     }
 
     #[test]
@@ -457,7 +462,7 @@ mod tests {
             let max = xs.max();
             let mut ys = xs.clone();
             for j in 0..n {
-                ys.vec.push(max + (j as i64) + 1);
+                ys.vec.push(max + (j as u64) + 1);
             }
 
             let result = test(&xs.vec, &ys.vec, 0.95);
@@ -466,7 +471,7 @@ mod tests {
             (result.statistic - expected).abs() < EPSILON
         }
 
-        quickcheck(prop as fn(Samples, u8) -> bool);
+        check(prop as fn(Samples, u8) -> bool);
     }
 
     #[test]
@@ -477,8 +482,8 @@ mod tests {
             let max = xs.max();
             let mut ys = xs.clone();
             for j in 0..n {
-                ys.vec.push(min - (j as i64) - 1);
-                ys.vec.push(max + (j as i64) + 1);
+                ys.vec.push(min - (j as u64) - 1);
+                ys.vec.push(max + (j as u64) + 1);
             }
 
             let result = test(&xs.vec, &ys.vec, 0.95);
@@ -487,7 +492,7 @@ mod tests {
             (result.statistic - expected).abs() < EPSILON
         }
 
-        quickcheck(prop as fn(Samples, u8) -> bool);
+        check(prop as fn(Samples, u8) -> bool);
     }
 
     #[test]
@@ -498,11 +503,11 @@ mod tests {
             let max = xs.max();
             let mut ys = xs.clone();
             for j in 0..n {
-                ys.vec.push(min - (j as i64) - 1);
+                ys.vec.push(min - (j as u64) - 1);
             }
 
             for j in 0..m {
-                ys.vec.push(max + (j as i64) + 1);
+                ys.vec.push(max + (j as u64) + 1);
             }
 
             let result = test(&xs.vec, &ys.vec, 0.95);
@@ -511,6 +516,6 @@ mod tests {
             (result.statistic - expected).abs() < EPSILON
         }
 
-        quickcheck(prop as fn(Samples, u8, u8) -> bool);
+        check(prop as fn(Samples, u8, u8) -> bool);
     }
 }

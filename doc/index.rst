@@ -650,3 +650,310 @@ Finally, the trading volume density plot looks surprisingly structured,
 congregating near the 17,000 trades/minute rate.
 
 .. image:: images/twtr-volume-density-1.png
+
+
+A Diversion In QuickCheck
+-------------------------
+`QuickCheck`_ is insane amounts of fun writing tests and a great way to become
+comfortable in a new language.
+
+.. _QuickCheck: https://en.wikipedia.org/wiki/QuickCheck
+
+The QuickCheck idea is to write tests as properties of the inputs rather than
+specific test cases. So, for instance, rather than checking whether a given
+pair of samples have a determined maximum empirical cumulative distribution
+function distance, instead a generic property is verified such as the distance
+is between zero and one for any pair of input samples.
+
+This form of test construction means that QuickCheck can probabilistically
+check the property over a huge number of test case instances and establish much
+greater confidence of correctness than a single individual test instance could.
+
+It can be harder too, yes. Writing properties that tightly specify the desired
+behaviour is an art form but starting with properties that very loosely
+constrain the software behaviour is often helpful, and facilitates an evolution
+into more sharply binding criteria.
+
+For a tutorial introduction to QuickCheck, John Hughes has a great
+`introduction talk <https://www.youtube.com/watch?v=zi0rHwfiX1Q>`_.
+
+There is an implementation of `QuickCheck for Rust`_ and the tests for the
+Kolmogorov-Smirnov Rust library have been implemented using it. See the
+`Github repository <https://github.com/daithiocrualaoich/kolmogorov_smirnov>`_
+for examples of how to QuickCheck in Rust.
+
+.. _QuickCheck for Rust: https://github.com/BurntSushi/quickcheck
+
+Here is a toy example of a QuickCheck property to test an integer doubling
+function.
+
+.. sourcecode:: rust
+
+    extern crate quickcheck;
+    use self::quickcheck::quickcheck;
+
+    fn double(n: u32) -> u32 {
+        2 * n
+    }
+
+    #[test]
+    fn test_double_n_is_greater_than_n() {
+        fn prop(n: u32) -> bool {
+            double(n) > n
+        }
+
+        quickcheck(prop as fn(u32) -> bool);
+    }
+
+This test is broken and QuickCheck makes short(I almost wrote 'quick'!) work of
+letting us know that we have been silly.
+
+::
+
+    test tests::test_double_n_is_greater_than_n ... FAILED
+
+    failures:
+
+    ---- tests::test_double_n_is_greater_than_n stdout ----
+        thread 'tests::test_double_n_is_greater_than_n' panicked at '[quickcheck] TEST FAILED. Arguments: (0)', /root/.cargo/registry/src/github.com-0a35038f75765ae4/quickcheck-0.2.24/src/tester.rs:113
+
+The last log line here includes the ``u32`` instance that failed the test, zero.
+Correct practice is to now create a non-probabilistic test case from the failure
+that tests that specific value. This will protect the codebase from regressions
+in the future.
+
+The problem is that the property is not actually valid for the ``double``
+function because double zero is actually zero. So let's fix it.
+
+.. sourcecode:: rust
+
+    #[test]
+    fn test_double_n_is_geq_n() {
+        fn prop(n: u32) -> bool {
+            double(n) >= n
+        }
+
+        quickcheck(prop as fn(u32) -> bool);
+    }
+
+Note how QuickCheck produced a minimal test violation, there are no smaller
+values of ``u32`` that violated the test. This is not an accident. QuickCheck
+libraries often include support for shrinking test failures to minimal examples.
+So when a test fails, QuickCheck will rerun it searching successively on smaller
+instances of the test arguments to determine the smallest violating case.
+
+The function is still broken, by the way, because it will overflow for large
+integers. QuickCheck doesn't catch this problem because the
+``QuickCheck::quickcheck`` convenience runner configures the tester to produce
+random data between zero and one hundred. For this reason, you should not use
+this convenience runner in testing. Instead, configure the ``QuickCheck``
+manually with as large a random range as you can.
+
+.. sourcecode:: rust
+
+    extern crate rand;
+    use self::quickcheck::{QuickCheck, StdGen, Testable};
+    use std::usize;
+
+    fn check<A: Testable>(f: A) {
+        let gen = StdGen::new(rand::thread_rng(), usize::MAX);
+        QuickCheck::new().gen(gen).quickcheck(f);
+    }
+
+    #[test]
+    fn test_double_n_is_greater_than_n_if_n_is_greater_than_1() {
+        fn prop(n: u32) -> TestResult {
+            if n <= 1 {
+                return TestResult::discard()
+            }
+
+            TestResult::from_bool(double(n) > n)
+        }
+
+        check(prop as fn(u32) -> TestResult);
+    }
+
+This will break the test with an overflow panic. This is correct and the
+``double`` function should do something about handling overflow properly.
+
+A warning, though, if you are testing ``vec``s or strings. The number of
+elements in the randomly generated ``vec`` or equivalently, the length of the
+randomly generated string will be a random number between zero and the size in
+the ``StdGen`` configured. There is the potential in this to create
+unnecessarily huge ``vec``s and strings. See the example of ``NonEmptyVec``
+below for a technique to limit the size of a randomly generated ``vec`` or
+string while still using a ``StdGen`` with a large range.
+
+Unfortunately, you are out of luck on a 32-bit machine where the ``usize::MAX``
+will only get you to sampling correctly in ``u32``. You will need to upgrade to
+a new machine before you can test ``u64``, sorry.
+
+By way of example, it is actually more convenient to include known failure cases
+like ``u32::max_value()`` in the QuickCheck test function rather than in a
+separate traditional test case function because the property code is available.
+So, when the QuickCheck fails for the overflow bug, add the test case like
+follows instead of in a separate function:
+
+.. sourcecode:: rust
+
+    #[test]
+    fn test_double_n_is_geq_n() {
+        fn prop(n: u32) -> bool {
+            double(n) >= n
+        }
+
+        assert!(prop(u32::max_value()));
+        quickcheck(prop as fn(u32) -> bool);
+    }
+
+Sometimes the property to test is not valid for some test arguments, i.e. the
+property is useful to verify but there certain combinations of probabilistically
+generated inputs that should be excluded.
+
+The Rust QuickCheck library supports this with the ``TestResult`` type. Suppose
+that instead of writing the ``double`` test property correctly, we wanted to
+just exclude the failing cases instead. This might be a practical thing to do in
+a real scenario. To do this, we rewrite the test as follows:
+
+.. sourcecode:: rust
+
+    use self::quickcheck::TestResult;
+
+    #[test]
+    fn test_double_n_is_greater_than_n_if_n_is_greater_than_1() {
+        fn prop(n: u32) -> TestResult {
+            if n <= 1 {
+                return TestResult::discard()
+            }
+
+            TestResult::from_bool(double(n) > n)
+        }
+
+        quickcheck(prop as fn(u32) -> TestResult);
+    }
+
+Here the cases where the property legimately doesn't hold are excluded by
+returning a ``TestResult::discard()``. This causes QuickCheck to retry the test
+with the next randomly generated ``u32``.
+
+Note also that the function return type is now ``TestResult`` and that
+``TestResult::from_bool`` is required around the test condition.
+
+An alternative approach is to create a wrapper type in the test code which only
+permits valid input and to rewrite the tests to take this type as the
+probabilistically generated input instead.
+
+For example, suppose you want to ensure that QuickCheck only generates positive
+integers for use in your property verification, you could add a wrapper type
+``PositiveInteger``. For QuickCheck to work, you then have to implement the
+``Arbitrary`` trait for this new type.
+
+The minimum requirement for an ``Arbitrary`` implementation is a function called
+``arbitrary`` taking a ``Gen`` random generator and producing a
+``PositiveInteger``. New implementations should always leverage existing
+``Arbitrary`` implementations, and so ``PositiveInteger`` generates a random
+``u64`` using ``u64::arbitrary()`` and constrains it to be greater than zero.
+
+.. sourcecode:: rust
+
+    extern crate quickcheck;
+    use self::quickcheck::{Arbitrary, Gen};
+    use std::cmp;
+
+    #[derive(Clone, Debug)]
+    struct PositiveInteger {
+        val: u64,
+    }
+
+    impl Arbitrary for PositiveInteger {
+        fn arbitrary<G: Gen>(g: &mut G) -> PositiveInteger {
+            let val = cmp::max(u64::arbitrary(g), 1);
+            PositiveInteger { value: val }
+        }
+
+        fn shrink(&self) -> Box<Iterator<Item = PositiveInteger>> {
+            let shrunk: Box<Iterator<Item = u64>> = self.value.shrink();
+            Box::new(shrunk.filter(|&v| v > 0).map(|v| {
+                PositiveInteger { value: v }
+            }))
+        }
+    }
+
+Note also the implementation of ``shrink()`` here, again in terms of the
+existing ``u64::shrink()``. This method is optional, if it is unimplemented then
+QuickCheck won't minimise property violations for the new wrapper type.
+
+Use ``PositiveInteger`` like follows:
+
+.. sourcecode:: rust
+
+    use self::quickcheck::quickcheck;
+
+    fn square(n: u64) -> u64 {
+        n * n
+    }
+
+    #[test]
+    fn test_square_n_for_positive_is_geq_1() {
+        fn prop(n: PositiveInteger) -> bool {
+            square(n.value) >= 1
+        }
+
+        quickcheck(prop as fn(PositiveInteger) -> bool);
+    }
+
+There is no need to use ``TestResult::discard()`` to ignore the failure case
+where n is zero.
+
+Finally, wrappers can be added for more complicated types too. A commonly
+useful container type generator is ``NonEmptyVec`` which excludes the empty
+``vec``.
+
+.. sourcecode:: rust
+
+    extern crate quickcheck;
+    extern crate rand;
+    use self::quickcheck::{quickcheck, Arbitrary, Gen};
+    use self::rand::Rng;
+    use std::cmp;
+
+    #[derive(Debug, Clone)]
+    struct NonEmptyVec<A> {
+        value: Vec<A>,
+    }
+
+    impl<A: Arbitrary> Arbitrary for NonEmptyVec<A> {
+        fn arbitrary<G: Gen>(g: &mut G) -> NonEmptyVec<A> {
+            // Limit size of generated vec to 1024
+            let max = cmp::min(g.size(), 1024);
+
+            let size = g.gen_range(1, max);
+            let vec = (0..size).map(|_| A::arbitrary(g)).collect();
+
+            NonEmptyVec { value: vec }
+        }
+
+        fn shrink(&self) -> Box<Iterator<Item = NonEmptyVec<A>>> {
+            let vec: Vec<A> = self.value.clone();
+            let shrunk: Box<Iterator<Item = Vec<A>>> = vec.shrink();
+
+            Box::new(shrunk.filter(|v| v.len() > 0).map(|v| {
+                NonEmptyVec { value: v }
+            }))
+        }
+    }
+
+    #[test]
+    fn test_head_of_sorted_vec_is_smallest() {
+        fn prop(vec: NonEmptyVec<u64>) -> bool {
+            let mut sorted = vec.value.clone();
+            sorted.sort();
+
+            // NonEmptyVec must have an element.
+            let head = sorted[0];
+
+            vec.value.iter().all(|&n| head <= n)
+        }
+
+        quickcheck(prop as fn(NonEmptyVec<u64>) -> bool);
+    }
