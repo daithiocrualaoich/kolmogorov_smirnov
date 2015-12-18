@@ -11,6 +11,179 @@ The code and examples here are available on
 `Github <https://github.com/daithiocrualaoich/kolmogorov_smirnov>`_.
 
 
+Kolmogorov-Smirnov Hypothesis Testing
+-------------------------------------
+The Kolmogorov-Smirnov test is a hypothesis test procedure for determining if
+two samples of data come from the same distribution. The test is non-parametric,
+entirely agnostic to what this distribution actually is. The fact that we never
+have to know what distribution the samples come from is incredibly useful,
+especially in software and operations where the distributions are hard to
+express and difficult to calculate with.
+
+It is really surprising that such a test exists. In an unkind Universe, we would
+be completely on our own.
+
+The test description may look a bit hard in the outline below. But skip ahead to
+the implementation because the Kolmogorov-Smirnov test is incredibly easy in
+practice.
+
+The Kolmogorov-Smirnov test is covered in `Numerical Recipes`_. There is a
+`pdf <http://www.aip.de/groups/soe/local/numres/bookcpdf/c14-3.pdf>`_ available
+from the third edition of Numerical Recipes in C.
+
+.. _Numerical Recipes: http://www.aip.de/groups/soe/local/numres
+
+The `Wikipedia article <https://en.wikipedia.org/wiki/Kolmogorov%E2%80%93Smirnov_test>`_
+is a useful overview but light about proof details. If you are interested in a
+why the test statistic has a distribution that is independent and useful for
+constructing the test, then these
+`MIT lecture notes <http://ocw.mit.edu/courses/mathematics/18-443-statistics-for-applications-fall-2006/lecture-notes/lecture14.pdf>`_
+give a sketch overview.
+
+For an application to metrics and monitoring in software operations, see this
+`introductory talk <https://vimeo.com/95069158>`_ by Toufic Boubez at
+Monitorama. The slides are available on
+`slideshare <http://www.slideshare.net/tboubez/simple-math-for-anomaly-detection-toufic-boubez-metafor-software-monitorama-pdx-20140505>`_.
+
+The Test Statistic
+~~~~~~~~~~~~~~~~~~
+The Kolmogorov-Smirnov test is constructed as a statistical hypothesis test. We
+determine a null hypothesis, :math:`H_0`, that the two samples we are testing
+come from the same distribution. Then we search for evidence that this
+hypothesis should be rejected and express this in terms of a probability. If
+the likelihood of the samples being from different distributions exceeds a
+confidence level we demand then the original hypothesis is rejected in favour
+of the hypothesis, :math:`H_1`, that the two samples are from different
+distributions.
+
+To do this, we devise a single number calculated from the samples, i.e. a
+statistic. The trick is to find a number that has a range of values which do
+not depend on things we don't know like the actual underlying distributions in
+this case.
+
+The test statistic in the Kolmogorov-Smirnov test is very easy, just the
+maximum vertical distance between the empirical cumulative distribution
+functions of the two samples.
+
+For instance, in this plot of the empirical cumulative distribution functions
+of a Normal(0, 1) and a Normal(0, 2) sample, the maximum vertical distance
+between the lines is at about -1.5 and 1.5.
+
+.. image:: images/n01n02ecdf-1.png
+
+For a Normal(0, 1) against Normal(1, 1) sample, it is a lot clearer. The maximum
+vertical distance occurs somewhere around zero and is quite large, maybe about
+0.35 in size.
+
+.. image:: images/n01n11ecdf-1.png
+
+As an aside, these demonstrate an important note about the application of the
+Kolomogorov-Smirnov test. It is much better at detecting distributions where
+the medians are far apart than it is at detecting distributions where the tails
+are different but the main mass of the distributions are around the same values.
+
+So, if :math:`X_i` are n independent and identically distributed observations,
+the empirical cumulative distribution function :math:`F_n` is:
+
+.. math::
+
+    F_n(x) = \frac{1}{n}\sum_{i=1}^n I_{[-\infty,x]}(X_i)
+
+Here, :math:`I` is the indicator function which is 1 if :math:`X_i` is less than
+or equal to :math:`x` and 0 otherwise.
+
+This just says that :math:`F_n(x)` is the number of samples observed that are
+less than or equal to :math:`x` divided by the total number of samples. But it
+does it in a complicated way so we can feel clever about ourselves.
+
+The empirical cumulative distribution function is an unbiased estimator for the
+underlying cumulative distribution function, incidentally.
+
+For two samples having empirical cumulative distribution functions
+:math:`F_n(x)` and :math:`G_m(x)`, the Kolmogorov-Smirnov test statistic,
+:math:`D`, is the maximum absolute difference between these for the same
+:math:`x`,  i.e. the largest vertical distance between the plots in the graph.
+
+.. math::
+
+    D = \sup_{-\infty\leq x \leq\infty} |F_n(x) - G_m(x)|
+
+The Glivenko–Cantelli theorem says if the :math:`F_n(x)` is made from samples
+from the same distribution as :math:`G_m(x)` then this statistic "almost surely
+converges to 0 in the limit when n goes to infinity." This is an extremely
+technical statement that we are going to ignore.
+
+Two-Sample KS test
+~~~~~~~~~~~~~~~~~~
+Surprisingly, the distribution of :math:`D` can be approximated well in the case
+that the samples are drawn from the same distribution. This means we can build
+a statistic test that rejects this null hypothesis for a given confidence level
+if :math:`D` exceeds an easily calculable value.
+
+Tables of critical values are available. The table
+`here <https://www.webdepot.umontreal.ca/Usagers/angers/MonDepotPublic/STT3500H10/Critical_KS.pdf>`_
+describes a test implementation for samples sizes greater than twelve where we
+reject the null hypothesis, i.e. decide that the samples are from different
+distributions, if
+
+.. math::
+
+    D > c(\alpha)\sqrt{\frac{n + m}{n m}}
+
+Where n and m are the sample sizes. For :math:`\alpha = 0.05` corresponding to
+95% confidence level, the value is :math:`c(\alpha) = 1.36`.
+
+Numerical Recipes describes a direct calculation that works well for:
+
+.. math::
+
+    N_{n, m} = \frac{n + m}{n m} \geq 4
+
+i.e. for sample sizes greater than seven as :math:`N_{8, 8} = 4`.
+
+The probability that the test statistic :math:`D` is greater than the value
+observed is approximately:
+
+.. math::
+
+    P(D > \text{observed}) = Q_{KS}\Big(\Big[\sqrt{N_{n, m}} + 0.12 + 0.11/\sqrt{N_{n, m}}\Big] D\Big)
+
+where
+
+.. math::
+
+    Q_{KS}(x) = 2 \sum_{j=1}^{\infty} (-1)^{j-1} e^{-2j^2x^2}
+
+The implementation in Numerical Recipes gives this a hundred terms to converge
+before failing.
+
+Discussion
+~~~~~~~~~~
+The implementation of this test is straightforward and can be found in the
+`Github repository <https://github.com/daithiocrualaoich/kolmogorov_smirnov>`_.
+The empirical cumulative distribution function implementation is about as
+complicated as it gets for this. There are two functions for this in the code,
+the simpler version used to probabilistically verify the other.
+
+The non-parametricity and generality is the great advantage of the
+Kolomogorov-Smirnov test but this is balanced by a number of drawbacks in its
+ability to establish evidence to reject the null hypothesis.
+
+In particular, the Kolmogorov-Smirnov test is weak in the cases that the sample
+empirical distribution functions do not deviate strongly even though the samples
+are from different distributions. For instance, the Kolomogorov-Smirnov test
+is most sensitive around the median of the samples because this is where
+differences in the graph are most likely to be. It is less strong near the tails
+because both cumulative distribution functions will be near 0 or 1 and the
+differences between them less pronounced. Location and shape related scenarios
+that limit the :math:`D` test statistic reduce the ability of the
+Kolmogorov-Smirnov test to reject the null hypothesis.
+
+The Chi-squared test is also used for testing if samples come from the same
+distribution but this is done with a binning and discretizes the data. This is
+not a issue in the Kolomogorov-Smirnov test.
+
+
 A Field Manual for Rust
 -----------------------
 `Rust`_ is a Mozilla sponsored project to create a safe, fast systems language.
