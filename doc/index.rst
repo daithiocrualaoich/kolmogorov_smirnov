@@ -8,22 +8,23 @@ A visit to a data and statistical technique useful to software engineers. We
 learn about some Rust too along the way.
 
 The code and examples here are available on
-`Github <https://github.com/daithiocrualaoich/kolmogorov_smirnov>`_.
+`Github <https://github.com/daithiocrualaoich/kolmogorov_smirnov>`_. The Rust
+library is on `crates.io <https://crates.io/crates/kolmogorov_smirnov>`_.
 
 
 Kolmogorov-Smirnov Hypothesis Testing
 -------------------------------------
 The Kolmogorov-Smirnov test is a hypothesis test procedure for determining if
-two samples of data come from the same distribution. The test is non-parametric,
-entirely agnostic to what this distribution actually is. The fact that we never
-have to know what distribution the samples come from is incredibly useful,
+two samples of data are from the same distribution. The test is non-parametric
+and entirely agnostic to what this distribution actually is. The fact that we
+never have to know the distribution the samples come from is incredibly useful,
 especially in software and operations where the distributions are hard to
 express and difficult to calculate with.
 
-It is really surprising that such a test exists. In an unkind Universe, we would
-be completely on our own.
+It is really surprising that such a useful test exists. This is an unkind
+Universe, we should be completely on our own.
 
-The test description may look a bit hard in the outline below. But skip ahead to
+The test description may look a bit hard in the outline below but skip ahead to
 the implementation because the Kolmogorov-Smirnov test is incredibly easy in
 practice.
 
@@ -34,15 +35,15 @@ from the third edition of Numerical Recipes in C.
 .. _Numerical Recipes: http://www.aip.de/groups/soe/local/numres
 
 The `Wikipedia article <https://en.wikipedia.org/wiki/Kolmogorov%E2%80%93Smirnov_test>`_
-is a useful overview but light about proof details. If you are interested in a
+is a useful overview but light about proof details. If you are interested in
 why the test statistic has a distribution that is independent and useful for
-constructing the test, then these
+constructing the test then these
 `MIT lecture notes <http://ocw.mit.edu/courses/mathematics/18-443-statistics-for-applications-fall-2006/lecture-notes/lecture14.pdf>`_
 give a sketch overview.
 
-For an application to metrics and monitoring in software operations, see this
-`introductory talk <https://vimeo.com/95069158>`_ by Toufic Boubez at
-Monitorama. The slides are available on
+See this `introductory talk <https://vimeo.com/95069158>`_ by Toufic Boubez at
+Monitorama for an application of the Kolmogorov-Smirnov test to metrics and
+monitoring in software operations. The slides are available on
 `slideshare <http://www.slideshare.net/tboubez/simple-math-for-anomaly-detection-toufic-boubez-metafor-software-monitorama-pdx-20140505>`_.
 
 The Test Statistic
@@ -52,57 +53,61 @@ determine a null hypothesis, :math:`H_0`, that the two samples we are testing
 come from the same distribution. Then we search for evidence that this
 hypothesis should be rejected and express this in terms of a probability. If
 the likelihood of the samples being from different distributions exceeds a
-confidence level we demand then the original hypothesis is rejected in favour
-of the hypothesis, :math:`H_1`, that the two samples are from different
-distributions.
+confidence level we demand the original hypothesis is rejected in favour of the
+hypothesis, :math:`H_1`, that the two samples are from different distributions.
 
-To do this, we devise a single number calculated from the samples, i.e. a
-statistic. The trick is to find a number that has a range of values which do
-not depend on things we don't know like the actual underlying distributions in
+To do this we devise a single number calculated from the samples, i.e. a
+statistic. The trick is to find a statistic which has a range of values that do
+not depend on things we do not know. Like the actual underlying distributions in
 this case.
 
-The test statistic in the Kolmogorov-Smirnov test is very easy, just the
+The test statistic in the Kolmogorov-Smirnov test is very easy, it is just the
 maximum vertical distance between the empirical cumulative distribution
-functions of the two samples.
+functions of the two samples. The empirical cumulative distribution of a sample
+is the proportion of the sample values that are less than or equal to a given
+value.
 
 For instance, in this plot of the empirical cumulative distribution functions
-of a Normal(0, 1) and a Normal(0, 2) sample, the maximum vertical distance
-between the lines is at about -1.5 and 1.5.
+of normally distributed data, :math:`N(0, 1)` and :math:`N(0, 2)` samples, the
+maximum vertical distance between the lines is at about -1.5 and 1.5.
 
 .. image:: images/n01n02ecdf-1.png
 
-For a Normal(0, 1) against Normal(1, 1) sample, it is a lot clearer. The maximum
-vertical distance occurs somewhere around zero and is quite large, maybe about
-0.35 in size.
+The vertical distance is a lot clearer for an :math:`N(0, 1)` sample against
+:math:`N(1, 1)`. The maximum vertical distance occurs somewhere around zero and
+is quite large, maybe about 0.35 in size. This is significant evidence that the
+two samples are from different distributions.
 
 .. image:: images/n01n11ecdf-1.png
 
-As an aside, these demonstrate an important note about the application of the
-Kolomogorov-Smirnov test. It is much better at detecting distributions where
-the medians are far apart than it is at detecting distributions where the tails
-are different but the main mass of the distributions are around the same values.
+As an aside, these examples demonstrate an important note about the application
+of the Kolomogorov-Smirnov test. It is much better at detecting distributional
+differences when the sample medians are far apart than it is at detecting
+when the tails are different but the main mass of the distributions is around
+the same values.
 
-So, if :math:`X_i` are n independent and identically distributed observations,
-the empirical cumulative distribution function :math:`F_n` is:
+So, more formally, if :math:`X_i` are n independent and identically distributed
+observations, the empirical cumulative distribution function, :math:`F_n`, is:
 
 .. math::
 
-    F_n(x) = \frac{1}{n}\sum_{i=1}^n I_{[-\infty,x]}(X_i)
+    F_n(x) = \frac{1}{n}\sum_{i=1}^n I_{(-\infty,x]}(X_i)
 
-Here, :math:`I` is the indicator function which is 1 if :math:`X_i` is less than
+Where :math:`I` is the indicator function which is 1 if :math:`X_i` is less than
 or equal to :math:`x` and 0 otherwise.
 
 This just says that :math:`F_n(x)` is the number of samples observed that are
 less than or equal to :math:`x` divided by the total number of samples. But it
-does it in a complicated way so we can feel clever about ourselves.
+says it in a complicated way so we can feel clever about ourselves.
 
 The empirical cumulative distribution function is an unbiased estimator for the
 underlying cumulative distribution function, incidentally.
 
 For two samples having empirical cumulative distribution functions
 :math:`F_n(x)` and :math:`G_m(x)`, the Kolmogorov-Smirnov test statistic,
-:math:`D`, is the maximum absolute difference between these for the same
-:math:`x`,  i.e. the largest vertical distance between the plots in the graph.
+:math:`D`, is the maximum absolute difference between :math:`F_n(x)` and
+:math:`G_m(x)` for the same :math:`x`,  i.e. the largest vertical distance
+between the plots in the graph.
 
 .. math::
 
@@ -110,161 +115,164 @@ For two samples having empirical cumulative distribution functions
 
 The Glivenko–Cantelli theorem says if the :math:`F_n(x)` is made from samples
 from the same distribution as :math:`G_m(x)` then this statistic "almost surely
-converges to 0 in the limit when n goes to infinity." This is an extremely
-technical statement that we are going to ignore.
+converges to zero in the limit when n goes to infinity." This is an extremely
+technical statement that we are simply going to ignore.
 
-Two-Sample KS test
-~~~~~~~~~~~~~~~~~~
+Two-Sample Kolmogorov-Smirnov Test
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Surprisingly, the distribution of :math:`D` can be approximated well in the case
 that the samples are drawn from the same distribution. This means we can build
 a statistic test that rejects this null hypothesis for a given confidence level
 if :math:`D` exceeds an easily calculable value.
 
 Tables of critical values are available, for instance the `SOEST tables`_
-describe a test implementation for samples sizes greater than twelve where we
-reject the null hypothesis, i.e. decide that the samples are from different
-distributions, if
+describe a test implementation for samples of more than twelve where we reject
+the null hypothesis, i.e. decide that the samples are from different
+distributions, if:
 
 .. math::
 
     D > c(\alpha)\sqrt{\frac{n + m}{n m}}
 
-Where n and m are the sample sizes. For :math:`\alpha = 0.05` corresponding to
-95% confidence level, the value is :math:`c(\alpha) = 1.36`.
+Where n and m are the sample sizes. A 95% confidence level corresponds to
+:math:`\alpha = 0.05` for which :math:`c(\alpha) = 1.36`.
 
 .. _SOEST tables: https://www.webdepot.umontreal.ca/Usagers/angers/MonDepotPublic/STT3500H10/Critical_KS.pdf
 
-Numerical Recipes describes a direct calculation that works well for:
+Alternatively, Numerical Recipes describes a direct calculation that works well
+for:
 
 .. math::
 
     N_{n, m} = \frac{n + m}{n m} \geq 4
 
-i.e. for sample sizes greater than seven as :math:`N_{8, 8} = 4`.
+i.e. for sample of more than seven since :math:`N_{8, 8} = 4`.
 
-The probability that the test statistic :math:`D` is greater than the value
-observed is approximately:
+Numerical Recipes continues by claiming the probability that the test statistic
+is greater than the value observed is approximately:
 
 .. math::
 
     P(D > \text{observed}) = Q_{KS}\Big(\Big[\sqrt{N_{n, m}} + 0.12 + 0.11/\sqrt{N_{n, m}}\Big] D\Big)
 
-where
+With :math:`Q_{KS}` defined as:
 
 .. math::
 
     Q_{KS}(x) = 2 \sum_{j=1}^{\infty} (-1)^{j-1} e^{-2j^2x^2}
 
+This can be computed by summing terms until a convergence criteria is achieved.
 The implementation in Numerical Recipes gives this a hundred terms to converge
 before failing.
 
 Discussion
 ~~~~~~~~~~
-The implementation of this test is straightforward and can be found in the
+A straightforward implementation of this test can be found in the
 `Github repository <https://github.com/daithiocrualaoich/kolmogorov_smirnov>`_.
-The empirical cumulative distribution function implementation is about as
-complicated as it gets for this. There are two functions for this in the code,
-the simpler version used to probabilistically verify the other.
+Calculating the test statistic using the empirical cumulative distribution
+functions is probably as complicated as it gets for this. There are two versions
+of the test statistic calculation in the code, the simpler version being used to
+probabilistically verify the more efficient implementation.
 
-The non-parametricity and generality is the great advantage of the
-Kolomogorov-Smirnov test but this is balanced by a number of drawbacks in its
-ability to establish evidence to reject the null hypothesis.
+Non-parametricity and generality are the great advantages of the
+Kolomogorov-Smirnov test but these are balanced by drawbacks in ability to
+establish sufficient evidence to reject the null hypothesis.
 
-In particular, the Kolmogorov-Smirnov test is weak in the cases that the sample
-empirical distribution functions do not deviate strongly even though the samples
-are from different distributions. For instance, the Kolomogorov-Smirnov test
-is most sensitive around the median of the samples because this is where
-differences in the graph are most likely to be. It is less strong near the tails
-because both cumulative distribution functions will be near 0 or 1 and the
-differences between them less pronounced. Location and shape related scenarios
-that limit the :math:`D` test statistic reduce the ability of the
-Kolmogorov-Smirnov test to reject the null hypothesis.
+In particular, the Kolmogorov-Smirnov test is weak in cases when the sample
+empirical cumulative distribution functions do not deviate strongly even though
+the samples are from different distributions. For instance, the
+Kolomogorov-Smirnov test is most sensitive to discrepency near the median of the
+samples because this is where differences in the graph are most likely to be
+large. It is less strong near the tails because the cumulative distribution
+functions will both be near 0 or 1 and the difference between them less
+pronounced. Location and shape related scenarios that constrain the :math:`D`
+test statistic reduce the ability of the Kolmogorov-Smirnov test to correctly
+reject the null hypothesis.
 
-The Chi-squared test is also used for testing if samples come from the same
-distribution but this is done with a binning and discretizes the data. This is
-not a issue in the Kolomogorov-Smirnov test.
+The Chi-squared test is also used for testing whether samples are from the same
+distribution but this is done with a binning discretization of the data. The
+Kolomogorov-Smirnov test does not require this.
 
 
 A Field Manual for Rust
 -----------------------
 `Rust`_ is a Mozilla sponsored project to create a safe, fast systems language.
-
-.. _Rust: https://www.rust-lang.org
-
-Why? There is a entire free
+There is an entire free
 `O'Reilly book <http://www.oreilly.com/programming/free/files/why-rust.pdf>`_
-on exactly this question but the reasons include:
+on why create this new language but the reasons include:
 
-* Robust memory management. It is not possible to deference null or dangling
+* Robust memory management. It is impossible to deference null or dangling
   pointers in Rust.
 * Improved security, reducing the incidence of flaws like buffer overflow
   exploits.
-* A light runtime, no garbage collection, and overhead means Rust is convenient
-  to embed in other languages and platforms like Ruby, Python, and Node.
-* Modern language features.
+* A light runtime with no garbage collection and overhead means Rust is
+  ideal to embed in other languages and platforms like Ruby, Python, and Node.
+* Rust has many modern language features unavailable in other systems languages.
 
-Rust is capable of very serious projects. The current flagship Rust project, for
-instance, is `Servo`_, a browser engine under open source development with
-contributions from Mozilla and Samsung.
+.. _Rust: https://www.rust-lang.org
+
+Rust is a serious language, capable of very serious projects. The current
+flagship Rust project, for instance, is `Servo`_, a browser engine under open
+source development with contributions from Mozilla and Samsung.
 
 .. _Servo: https://servo.org
 
-The best introduction to Rust is the `Rust Book`_. But also read Steve Klabnik's
-`alternative introdution to Rust`_ for the upfront no-nonsense dive into memory
-ownership, the crux concept for Rust beginners.
+The best introduction to Rust is the `Rust Book`_. Newcomers should also read
+Steve Klabnik's `alternative introdution to Rust`_ for the upfront no-nonsense
+dive into memory ownership, the crux concept for Rust beginners.
 
 .. _Rust Book: https://doc.rust-lang.org/book
 .. _alternative introdution to Rust: http://words.steveklabnik.com/a-new-introduction-to-rust
 
-Those in a hurry can quickstart with these slide decks:
+Those in a hurry can quickstart with these slide decks by:
 
-* `Dimiter Petrov, Romain Ruetschi <http://hackepfl.github.io/rust-workshop-slides/slides.html>`_
+* `Dimiter Petrov and Romain Ruetschi <http://hackepfl.github.io/rust-workshop-slides/slides.html>`_
 * `Danilo Bargen <https://speakerdeck.com/dbrgn/intro-to-rust>`_
 
 Two must-read learning resources are `24 Days of Rust`_, a charming tour around
-the libraries and world of Rust, and `ArcadeRS`_, a tutorial via the medium of
-video games.
+the libraries and world of Rust, and `ArcadeRS`_, a tutorial in Rust about
+writing video games.
 
 .. _24 Days of Rust: http://zsiciarz.github.io/24daysofrust
 .. _ArcadeRS: http://jadpole.github.io/arcaders/arcaders-1-0
 
-And finally, if Servo has interested you in the idea of writing a browser engine
-in Rust, then `Let's build a browser engine!`_ is the series for you. It walks
-through writing a simple HTML rendering engine in Rust.
+And finally, if Servo has you interested in writing a browser engine in Rust,
+then `Let's build a browser engine!`_ is the series for you. It walks through
+creating a simple HTML rendering engine in Rust.
 
 .. _Let's build a browser engine!: http://limpet.net/mbrubeck/2014/08/08/toy-layout-engine-1.html
 
 Moral Support for Learning the Memory Rules
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-There is no pretending otherwise, the Road to Rust is not royal. The Rust memory
+The Road to Rust is not royal, there is no pretending otherwise. The Rust memory
 rules about lifetime, ownership, and borrowing are especially hard to learn.
 
 It probably doesn't much feel like it but Rust is really trying to help us with
 these rules. And to be fair to Rust, it hasn't segfaulted me so far.
 
-But that is not much comfort when the compiler won't build your code and you
-have no idea why. The best advice is probably to read as much about the Rust
+But that is no comfort when the compiler won't build your code and you can't
+figure out why. The best advice is probably to read as much about the Rust
 memory rules as you can and to keep reading about them over and over until they
-start to make some sense.
+start to make some sense. Don't worry, everybody finds it difficult at first.
 
-Adherence to the rules provides the compiler with invariant guarantees that can
-be used to construct a proof of memory safety. In practical terms, though, the
-rationale for these rules is unimportant. What is necessary is to find a way to
-work with them so that your programmes compile.
+Although adherence to the rules provides the compiler with invariant guarantees
+that can be used to construct proofs of memory safety, the rationale for these
+rules is largely unimportant. What is necessary is to find a way to work with
+them so your programs compile.
 
-Keep at it. It takes a long time but eventually it does all become clearer.
+Keep at it. It takes a long time but it does become clearer!
 
 Niche Observations
 ~~~~~~~~~~~~~~~~~~
-This section is a random sample of Rust arcana that interested me. Nothing here
-that doesn't interest you is worth troubling too much with and you should skip
-on past.
+This section is a scattering of Rust arcana that caught my attention. Nothing
+here that doesn't interest you is worth troubling too much with and you should
+skip on past.
 
 `Travis CI`_ has excellent support for building Rust projects, including with
-the beta, and nightly versions. It is simple to set up too by configuring a
+the beta and nightly versions. It is simple to set up by configuring a
 ``travis.yml`` according to the
-`Travis documentation <https://docs.travis-ci.com/user/languages/rust>`_. See
-the `Travis CI build for this project`_, for instance.
+`Travis Rust documentation <https://docs.travis-ci.com/user/languages/rust>`_.
+See the `Travis CI build for this project`_ for an example.
 
 .. _Travis CI: https://travis-ci.org
 .. _Travis CI build for this project: https://travis-ci.org/daithiocrualaoich/kolmogorov_smirnov
@@ -280,18 +288,17 @@ Rust newcomers.
 
 Foreign Function Interface is an area where Rust excels. The absence of a large
 runtime means Rust is great for embedding in other languages and it has a wide
-range as a C replacement in writing modules for Python, Ruby, Node, etc. See the
+range as a C replacement in writing modules for Python, Ruby, Node, etc. The
 `Rust Book introduction <https://doc.rust-lang.org/book/rust-inside-other-languages.html>`_
-for a demonstration of how easy it is call Rust from other languages.
+demonstrates how easy it is call Rust from other languages.
 `Day 23 of Rust <https://zsiciarz.github.io/24daysofrust/book/day23.html>`_ and
 the `Rust FFI Omnibus`_ are additional resources for Rust FFI.
 
 .. _Rust FFI Omnibus: http://jakegoulding.com/rust-ffi-omnibus
 
 Rust is being used experimentally for embedded development. `Zinc`_ is work on
-building a realtime operating system for ARM using Rust primarily, and the
-following are posts about building software for embedded devices directly using
-Rust.
+building a realtime ARM operating system using Rust primarily, and the following
+are posts about building software for embedded devices directly using Rust.
 
 * `Rust bare metal on ARM microcontroller`_.
 * `Embedded Rust Right Now!`_
@@ -300,30 +307,30 @@ Rust.
 .. _Rust bare metal on ARM microcontroller: http://antoinealb.net/programming/2015/05/01/rust-on-arm-microcontroller.html
 .. _Embedded Rust Right Now!: http://spin.atomicobject.com/2015/02/20/rust-language-c-embedded
 
-And relatedly, `Rust on Raspberry Pi`_ is a guide to cross-compiling Rust code
-for the Raspberry Pi.
+Relatedly, `Rust on Raspberry Pi`_ is a guide to cross-compiling Rust code for
+the Raspberry Pi.
 
 .. _Rust on Raspberry Pi: https://github.com/Ogeon/rust-on-raspberry-pi/
 
-Rust considers the code snippets in your project documentation as tests and
-makes a point of compiling them. This helps a little to keep your documentation
-in sync with the code but it is a shock the first time you get a compiler error
-for a documentation code snippet and it takes you ages to find it.
+Rust treats the code snippets in your project documentation as tests and makes a
+point of compiling them. This helps keep documentation in sync with code but it
+is a shock the first time you get a compiler error for a documentation code
+snippet and it takes you ages to realise what is happening.
 
 
-Kolmogorov-Smirnov Test Library
--------------------------------
-The Kolmogorov-Smirnov test implementation is available as a crate, so it is
-easy to incorporate into your programs. Add the dependency to your
-``Cargo.toml`` file.
+Kolmogorov-Smirnov Test Library Implementation
+----------------------------------------------
+The Kolmogorov-Smirnov test implementation is available as a Cargo
+`crate <https://crates.io/crates/kolmogorov_smirnov/>`_, so it is simple to
+incorporate into your programs. Add the dependency to your ``Cargo.toml`` file.
 
 ::
 
     [dependencies]
     kolmogorov_smirnov = "0.1.0"
 
-Then using the test is straightforward, call the ``kolmogorov_smirnov::test``
-function with the two samples to compare and the desired confidence level.
+Then to use the test, call the ``kolmogorov_smirnov::test`` function with the
+two samples to compare and the desired confidence level.
 
 .. sourcecode:: rust
 
@@ -340,13 +347,13 @@ function with the two samples to compare and the desired confidence level.
     }
 
 The Kolmogorov-Smirnov test as implemented works for any data with a ``Clone``
-and an ``Ord`` trait implementation in Rust. It would be possible, maybe a
-little eccentric, to test two samples of characters, strings or lists.
+and an ``Ord`` trait implementation in Rust. So it is possible, but pretty
+useless, to test samples of characters, strings and lists.
 
 If you have floating point or integer data to test, you can use the included
-test runners, ``ks_f64.rs`` and ``ks_i32.rs``. These operate on single-column
-headerless data files and test the samples against each other at the 0.95
-confidence level.
+test runner binaries, ``ks_f64`` and ``ks_i32``. These operate on single-column
+headerless data files and test two commandline argument filenames against each
+other at 95% confidence.
 
 .. sourcecode:: bash
 
@@ -356,12 +363,12 @@ confidence level.
     $ cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_1_1.1.tsv
     Samples are from different distributions.
 
-Testing floating point numbers is a real headache because Rust floating point
-types do not implement the ``Ord`` trait, only the ``PartialOrd`` trait. This
-is because things like ``NaN`` are not comparable and the order cannot be
+Testing floating point numbers is a headache because Rust floating point types
+(correctly) do not implement the ``Ord`` trait, only the ``PartialOrd`` trait.
+This is because things like ``NaN`` are not comparable and the order cannot be
 total over all values in the datatype.
 
-The test runner for floating point types is implemented with a wrapper type
+The test runner for floating point types is implemented using a wrapper type
 that implements a total order, crashing on unorderable elements. This suffices
 in practice since the unorderable elements will break the test anyway.
 
@@ -373,11 +380,11 @@ Statistical tests are more fun if you have datasets to run them over.
 N(0,1)
 ~~~~~~
 Because it is traditional and because it is easy and flexible, start with some
-Normal distributed data.
+normally distributed data.
 
-Rust can generate Normal data using the `rand::distributions`_ module. If
+Rust can generate normal data using the `rand::distributions`_ module. If
 ``mean`` and ``variance`` are ``f64`` values representing the mean and variance
-of the desired Normal deviate, then the following code generates the deviate.
+of the desired normal deviate, then the following code generates the deviate.
 Note that the ``Normal::new`` call requires the mean and standard deviation as
 parameters, so it is necessary to take the square root of the variance to
 provide the standard deviation value.
@@ -393,28 +400,26 @@ provide the standard deviation value.
     let variance: f64 = ...
 
     let mut rng = rand::thread_rng();
-    let normal = Normal::new(mean, variance.sqrt);
+    let normal = Normal::new(mean, variance.sqrt());
 
     let x = normal.ind_sample(&mut rng);
 
 The ``kolmogorov_smirnov`` library includes a binary for generating sequences of
-independently distributed Normal deviates. It can be called with the following
-usage.
+independently distributed Normal deviates. It has the following usage.
 
 ::
 
     cargo run --bin normal <num_deviates> <mean> <variance>
 
-The ``-q`` option is useful too in order to suppress ``cargo`` build messages in
-the output.
+The ``-q`` option is useful too for suppressing ``cargo`` build messages in the
+output.
 
 Sequences from :math:`N(0, 1)`, :math:`N(0, 2)`, and :math:`N(1, 1)` are
 included in the
 `Github repository <https://github.com/daithiocrualaoich/kolmogorov_smirnov>`_.
-
-:math:`N(0, 2)` is largely included just to be deliberately annoying,
-calculating :math:`\sqrt{2}` and drawing attention to the limitations of the
-floating point represention of irrational numbers. #trololo
+:math:`N(0, 2)` is included mainly just to troll, calculating :math:`\sqrt{2}`
+and drawing attention to the limitations of the floating point represention of
+irrational numbers.
 
 .. sourcecode:: bash
 
@@ -422,8 +427,8 @@ floating point represention of irrational numbers. #trololo
     cargo run -q --bin normal 8192 0 2 > normal_0_2.tsv
     cargo run -q --bin normal 8192 1 1 > normal_1_1.tsv
 
-These are sadly not the most beautiful of Normal curves, but you must take what
-you get. The :math:`N(0, 1)` data is lumpy and not single peaked.
+These are not the most beautiful of Normal curves, but you must take what you
+get. The :math:`N(0, 1)` data is lumpy and not single peaked.
 
 .. image:: images/n01-1.png
 
@@ -431,25 +436,24 @@ you get. The :math:`N(0, 1)` data is lumpy and not single peaked.
 
 .. image:: images/n02-1.png
 
-:math:`N(1, 1)` actally looks suprisingly like the Normal data diagrams in
+:math:`N(1, 1)` by contrast looks suprisingly like the normal data diagrams in
 textbooks.
 
 .. image:: images/n11-1.png
 
-And the following is a plot of all three datasets to illustrate the relative
-widths, heights and supports.
+The following is a plot of all three datasets to illustrate the relative widths,
+heights and supports.
 
 .. image:: images/n01n02n11-1.png
 
 Results
 ```````
-The Kolmogorov-Smirnov test is successful in establishing the :math:`N(0, 1)`
-datasets are all from the same distribution in all possible permutations of
-the test.
+The Kolmogorov-Smirnov test is successful at establishing the :math:`N(0, 1)`
+datasets are all from the same distribution in all combinations of the test.
 
 .. sourcecode:: bash
 
-    # cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_0_1.1.tsv
+    $ cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_0_1.1.tsv
     Samples are from the same distributions.
     test statistic = 0.0399169921875
     critical value = 0.08631790804925708
@@ -481,23 +485,24 @@ Save yourself the trouble in reproduction by running this instead:
         done
     done
 
-The :math:`N(1, 1)` datasets also pass in all combinations when tested against
-each other.
+The :math:`N(1, 1)` datasets also correctly accept the null hypothesis in all
+combinations of dataset inputs when tested against each other.
 
-However, :math:`N(0, 2)` though, passes for all combinations but that between
-``dat/normal_0_2.tsv`` and ``dat/normal_0_2.1.tsv`` where it fails.
+However, :math:`N(0, 2)` successfully passes for all combinations but that
+between ``dat/normal_0_2.tsv`` and ``dat/normal_0_2.1.tsv`` where it fails as a
+false negative.
 
 .. sourcecode:: bash
 
-    # cargo run -q --bin ks_f64 dat/normal_0_2.tsv dat/normal_0_2.1.tsv
+    $ cargo run -q --bin ks_f64 dat/normal_0_2.tsv dat/normal_0_2.1.tsv
     Samples are from different distributions.
     test statistic = 0.102783203125
     critical value = 0.08631790804925708
     confidence = 0.95
 
-This is a demonstration of how the Kolmogorov-Smirnov test can be sensitive to
-location because here the mean of the ``dat/normal_0_2.1.tsv`` is shifted quite
-far from the origin.
+This failure is a demonstration of how the Kolmogorov-Smirnov test is sensitive
+to location because here the mean of the ``dat/normal_0_2.1.tsv`` is shifted
+quite far from the origin.
 
 This is the density.
 
@@ -507,18 +512,19 @@ And superimposed with the density from ``dat/normal_0_2.tsv``.
 
 .. image:: images/n02n021-1.png
 
-The plot for ``dat/normal_0_2.1.tsv`` is the taller line in this graph. Notice,
-in particular, that the mean is shifted left a lot in comparison to the
-``dat/normal_0_2.tsv``. See also the chunk of non-overlapping weight on the
-right hand slope.
+The data for ``dat/normal_0_2.1.tsv`` is the taller density in this graph.
+Notice, in particular, that the mean is shifted left a lot in comparison with
+``dat/normal_0_2.tsv``. See also the chunks of non-overlapping weight on the
+left and right hand slopes.
 
 The difference in means is confirmed by calculation. The dataset for
 ``dat/normal_0_2.tsv`` has mean 0.001973723, whereas the dataset for
-``dat/normal_0_2.1.tsv`` a mean of -0.2145779. By comparison, the other
-:math:`N(0, 2)` dataset means are -0.1308625, -0.08537648. and -0.01374325.
+``dat/normal_0_2.1.tsv`` has mean -0.2145779. By comparison, the other
+:math:`N(0, 2)` datasets tests have means -0.1308625, -0.08537648, and
+-0.01374325.
 
 Looking at the empirical cumulative density functions of the false negative
-comparison, we see a significant gap between the curves between 0 and 1.
+comparison, we see a significant gap between the curves starting near 0.
 
 .. image:: images/n02n021ecdf-1.png
 
@@ -529,10 +535,11 @@ for the other :math:`N(0, 2)` tests.
 .. image:: images/n02n023ecdf-1.png
 .. image:: images/n02n024ecdf-1.png
 
-This is one false negative in thirty unique test pairs.
+One false negative in thirty unique test pairs at 95% confidence is on the
+successful side of expectations.
 
-Turning now to the tests that should be expected to fail, the following block
-will run the comparisons between datasets from different distributions.
+Turning instead to tests that should be expected to fail, the following block
+runs comparisons between datasets from different distributions.
 
 .. sourcecode:: bash
 
@@ -547,12 +554,14 @@ will run the comparisons between datasets from different distributions.
         done
     done
 
-The :math:`N(0, 1)` to :math:`N(1, 1)` and :math:`N(0, 2)` to :math:`N(0, 1)`
-tests reject the null hypothesis correctly in every variation. This illustrates
-how the Kolmogorov-Smirnov test is sensitive to changes in mean.
+The :math:`N(0, 1)` against :math:`N(1, 1)` and :math:`N(0, 2)` against
+:math:`N(0, 1)` tests correctly reject the null hypothesis in every variation.
+These tests are easy failures because they are large location changes,
+illustrating again how the Kolmogorov-Smirnov test is sensitive to changes in
+centrally located weight.
 
-But there are ten false positives in the comparison between datasets from
-:math:`N(0, 1)` against :math:`N(0, 2)`.
+However, there are ten false positives in the comparisons between datasets from
+:math:`N(0, 1)` and :math:`N(0, 2)`.
 
 ``dat/normal_0_1.2.tsv`` is reported incorrectly as being from the same
 distribution as the following datasets.
@@ -562,41 +571,44 @@ distribution as the following datasets.
 * ``dat/normal_0_2.3.tsv``
 * ``dat/normal_0_2.4.tsv``
 
-``dat/normal_0_1.3.tsv`` is a false positive with:
+Similarly, ``dat/normal_0_1.3.tsv`` is a false positive against:
 
 * ``dat/normal_0_2.3.tsv``
 * ``dat/normal_0_2.4.tsv``
 
-And ``dat/normal_0_1.4.tsv`` is a false positive with:
+And ``dat/normal_0_1.4.tsv`` is a false positive against:
 
 * ``dat/normal_0_2.1.tsv``
 * ``dat/normal_0_2.2.tsv``
 * ``dat/normal_0_2.3.tsv``
 * ``dat/normal_0_2.4.tsv``
 
-We'll only examine one of these failures, that between ``dat/normal_0_1.2.tsv``
+Let's examine just one of these failures, that between ``dat/normal_0_1.2.tsv``
 and ``dat/normal_0_2.2.tsv``. The overlaid density and empirical cumulative
-density functions appear to show a strong difference.
+density functions show strong difference.
 
 .. image:: images/n012n022-1.png
 .. image:: images/n012n022ecdf-1.png
 
-The problem is lack of samples. Both of these datasets have 256 samples and the
-the 95% confidence critical value is 0.1202081528017131. This is a large
-difference to demonstrate and in the case of this test the :math:`D` test
-statistic is actually 0.08203125.
+The problem, however, is a lack of samples combined with the weakness of the
+Kolmogorov-Smirnov test in detecting differences in spread at the tails. Both of
+these datasets have 256 samples and the critical value for 95% confidence is
+0.12. This is a large difference to demonstrate at the edges of the empirical
+cumulative distribution functions and in the case of this test the :math:`D`
+test statistic is a comfortable 0.082.
 
-There is not enough evidence to reject the null hypothesis.
+There is insufficient evidence to reject the null hypothesis.
 
 Notice that of the false positives, only the one between
 ``dat/normal_0_1.2.tsv`` and ``dat/normal_0_2.tsv`` happens with a dataset
-containing 8192 samples. In this test, the critical value is 0.08631790804925708
-and the test statistic scraps just underneath at 0.0828857421875.
+containing more than 256 samples. In this test with 8192 samples against 256,
+the critical value is 0.08631 and the test statistic scrapes by underneath at
+0.08288.
 
-In the case of comparing two samples of size 8192, the critical value is a very
+In the case for two samples of size 8192, the critical value is a very
 discriminating 0.02125.
 
-In total there are ten false positives in 75 tests.
+In total there are ten false positives in 75 tests, a poor showing.
 
 The lesson is that false positives are more common and especially with small
 datasets. When using the Kolmogorov-Smirnov test in production systems, tend to
@@ -604,12 +616,13 @@ use higher confidence levels when larger datasets cannot be available.
 
 http://twitter.com Response Times
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Less artificially, and more likely in software operations and monitoring, are
-datasets of HTTP server response times. Metrics behaving like response time are
-very typical and not easy to analyse with standard statistical technology.
+Less artificially, and more representative of metrics in software operations and
+monitoring, are datasets of HTTP server response times. Metrics which behave
+like response time are very typical and not easy to analyse with usual
+statistical technology.
 
 `Apache Bench`_ is a commandline URL loadtesting tool that can be used to
-collect sample datasets for HTTP request times. A dataset of service times for
+collect sample datasets of HTTP request times. A dataset of service times for
 ``http://twitter.com`` was collected using:
 
 .. _Apache Bench: https://httpd.apache.org/docs/2.2/programs/ab.html
@@ -619,24 +632,20 @@ collect sample datasets for HTTP request times. A dataset of service times for
     ab -n 8192 -c 1 -v 3 -g http.tsv http://twitter.com/
 
 The test actually ships 3.36MB of redirect headers since ``http://twitter.com``
-is a 301 Moved Permanently redirect to ``https://twitter.com``. The dataset is
-still useful as it exhibits the behaviour of HTTP endpoint responses anyway.
-
-(Note that Apache Bench has an option for issuing HEAD requests instead of GET
-requests so it is possible to test the HTTPS endpoint without the 2GB of HTML
-traffic but the encryption setup still has a cost for everybody.)
+is a 301 Moved Permanently redirect to ``https://twitter.com`` but the dataset
+is still useful as it exhibits the behaviour of HTTP endpoint responses anyway.
 
 The options in the call specify:
 
-* ``-c 1``: Use test concurrency of one outstanding request at any given time to
-  trottle the testing.
-* ``-v 3``: Log at a high verbosity level to show the individual request data.
+* ``-c 1``: Use test concurrency of one outstanding request to trottle the
+  testing.
+* ``-v 3``: Log at high verbosity level to show individual request data.
 * ``-g http.tsv``: Output a TSV summary to ``http.tsv``. The ``-g`` stands for
-  Gnuplot which the output file is specifically organised to support.
+  Gnuplot which the output file is organised to support particularly.
 
 A timeout or significant failure can trash the test completely, so it is more
-robust to collect the data in blocks of 256 requests and combine the results.
-This was done to collect some supplementary data for comparison purposes and is
+robust to collect data in blocks of 256 requests and combine the results. This
+was done in collect some supplementary data for comparison purposes and is
 available as ``dat/http.1.tsv`` through ``dat/http.4.tsv`` in the
 `Github repository <https://github.com/daithiocrualaoich/kolmogorov_smirnov>`_.
 The primary dataset is ``dat/http.tsv``.
@@ -662,23 +671,23 @@ The result data file from Apache Bench has the following
 * ``ctime``: Connection time to the server in milliseconds.
 * ``dtime``: Processing time on the server in milliseconds. The ``d`` may stand
   for "duration" or it may not.
-* ``ttime``: Total time in milliseconds, ``ctime + dtime``
+* ``ttime``: Total time in milliseconds, ``ctime + dtime``.
 * ``wait``: Waiting time in milliseconds. This is not included in ``ttime``, it
   appears from the data.
 
-If you want to the generated data file as it was intended for processing with
-Gnuplot, then see this
+If you want to use the generated data file as it was intended for processing
+with Gnuplot, then see this
 `article <http://www.bradlanders.com/2013/04/15/apache-bench-and-gnuplot-youre-probably-doing-it-wrong>`_.
 
-The output data is sorted by Apache Bench according to ``ttime``, so shorter
-requests come first in the output. The purposes here better appreciate data
-sorted by the ``seconds`` timestamp, particularly to plot the timeseries data in
-the order it happened.
+The output data is sorted by Apache Bench according to ``ttime``, meaning
+shorter requests come first in the output. The purposes here better appreciate
+data sorted by the ``seconds`` timestamp, particularly to plot the timeseries
+data in the order the requests were issued.
 
 And because nobody is much interested in when exactly this dataset was made, the
-``starttime`` and ``seconds`` fields can be dropped from the final data. The
+``starttime`` and ``seconds`` fields are dropped from the final data. The
 following `crafty piece of Awk <http://unix.stackexchange.com/a/71949>`_ does
-the desired header-retaining sort and column projection.
+the header-retaining sort and column projection.
 
 .. sourcecode:: bash
 
@@ -687,11 +696,11 @@ the desired header-retaining sort and column projection.
       cut -f3- \
       > http.tsv.out
 
-The response time datasets in the Github repository have all been processed like
+All the response time datasets in the Github repository have been processed like
 this.
 
-To process the headered multi-column data files into a format suitable for
-using with ``ks_i64`` use the following example as a guide:
+To transform the headered multi-column data files into a format suitable for
+input to ``ks_i64`` use the following example as a guide:
 
 .. sourcecode:: bash
 
@@ -701,36 +710,36 @@ using with ``ks_i64`` use the following example as a guide:
 
 Then to run the test:
 
-.. sourcecode::bash
+.. sourcecode:: bash
 
     cargo run -q --bin test_t64 dat/http_ttime.tsv dat/http_ttime.1.tsv
 
-The timeseries plot shows a common Internet tale of outliers, failure cases and
+The timeseries plot shows a common Internet story of outliers, failure cases and
 disgrace.
 
 .. image:: images/http-timeseries-1.png
 
 The density is highly peaked but includes fast failure weight and a long light
-tail. This is not straightforward to parametrise with common statistical
-distributions that are fruitful to work with and demonstrates a significant
+tail. This is not straightforward to parametrise with the common statistical
+distributions that are fruitful to work with and demonstrates the significant
 utility of the Kolmogorov-Smirnov test.
 
 .. image:: images/http-density-1.png
 
 Note there is a much larger horizontal axis range in this graph. This has the
-effect of compressing the visual area under the graph relative to the other
+effect of compressing the visual area under the graph relative to the earlier
 dataset density plots.
 
-Don't let this trick you, though. The y axis values are smaller than in the
-other graphs but there is far more horizontal axis support to compensate. The
-definition of a probability density means that the area under the graph in all
-the density plots must sum to 1.
+Don't let this trick you. The y axis values are smaller than in the other graphs
+but there is far more horizontal axis support to compensate. The definition of a
+probability density means the area under the graph in all the density plots must
+sum to the same.
 
 Results
 ```````
 Restricting attention to just the total time value, there are ten test dataset
-combinations all of which are false negatives in comparison save for the
-comparison between ``dat/http_ttime.1.tsv`` ``dat/http_ttime.4.tsv``
+combinations all of which are false negatives save for the comparison between
+``dat/http_ttime.1.tsv`` ``dat/http_ttime.4.tsv``
 
 .. sourcecode:: bash
 
@@ -748,94 +757,96 @@ comparison between ``dat/http_ttime.1.tsv`` ``dat/http_ttime.4.tsv``
         done
     done
 
-The only correctly evaluated test returns the following test data:
+The only accepted test returned the following test information:
 
 .. sourcecode:: bash
 
-    # cargo run -q --bin ks_f64 dat/http_ttime.1.tsv dat/http_ttime.4.tsv
+    $ cargo run -q --bin ks_f64 dat/http_ttime.1.tsv dat/http_ttime.4.tsv
     Samples are from the same distributions.
     test statistic = 0.0703125
     critical value = 0.1202081528017131
     confidence = 0.95
 
-For example here is the timeseries and density plot for ttime in the
-``dat/http_ttime.1.tsv`` dataset.
+Here is the timeseries and density plot for ``ttime`` in the
+``dat/http_ttime.1.tsv`` dataset for comparison to the ``dat/http_ttime.tsv``
+plots above.
 
 .. image:: images/http1-timeseries-1.png
 .. image:: images/http1-density-1.png
 
-This has some similarity to the observations in ``dat/http_ttime.tsv`` but a
-far shorter tail.
+There is some similarity to the observations in ``dat/http_ttime.tsv`` but there
+is a far shorter tail here.
 
-In fact, the datasets are all very different. Here are the other density plots.
+In fact, the datasets are all very different from each other. Here are the other
+density plots.
 
 ``dat/http_ttime.2.tsv`` exhibits a spike of failures which are of short
-duration and contribute the weight on the left of the graph.
+duration and contribute large weight on the left of the graph.
 
 .. image:: images/http2-density-1.png
 
-By contrast ``dat/http_ttime.3.tsv`` has no fast failures and the weight is
-concentrated around .9s to 1s.
+By contrast ``dat/http_ttime.3.tsv`` has no fast failures or slow outliners and
+the weight is packed around .9s to 1s.
 
 .. image:: images/http3-density-1.png
 
-``dat/http_ttime.4.tsv`` has a long tail for an outlier.
+``dat/http_ttime.4.tsv`` has a long tail for an outliers, likely to be request
+timeouts.
 
 .. image:: images/http4-density-1.png
 
-From inspection of the empirical cumulative density functions, it looks that the
-most likely match which failed could have been between ``dat/http_ttime.tsv``
-and ``dat/http_ttime.4.tsv``. Other than the passing test, this is the
-comparison with the smallest test statistic.
+By inspection of the empirical cumulative density functions, the only test with
+a possible chance of accepting the null hypothesis was that between
+``dat/http_ttime.tsv`` and ``dat/http_ttime.4.tsv``. This is the comparison with
+the smallest test statistic from the rejected cases.
 
 .. sourcecode:: bash
 
-    # cargo run -q --bin ks_f64 dat/http_ttime.4.tsv dat/http_ttime.tsv
+    $ cargo run -q --bin ks_f64 dat/http_ttime.4.tsv dat/http_ttime.tsv
     Samples are from different distributions.
     test statistic = 0.1368408203125
     critical value = 0.08631790804925708
     confidence = 0.95
 
-Even still, this is not a close match. Here is the plot of empirical cumulative
-density functions showing a very different profile on the error request times
-to the left of the diagram.
+Even still, this is not a close match. The empirical cumulative density function
+plots show very different profiles on the error request times to the left of the
+diagram.
 
 .. image:: images/httphttp4ecdf-1.png
 
-As for the passing match, it turns out that indeed ``dat/http_ttime.1.tsv``
-and ``dat/http_ttime.4.tsv`` are quite similar. This would be more apparent but
-for the outlier in ``dat/http_ttime.4.tsv``. But since the Kolmogorov-Smirnov
-test is not as sensitive at the tails, this does not contribute evidence to
-reject the null hypothesis.
+As for the passing match, it turns out that ``dat/http_ttime.1.tsv`` and
+``dat/http_ttime.4.tsv`` are indeed quite similar. This would be more apparent
+but for the outlier in ``dat/http_ttime.4.tsv``. Given that the
+Kolmogorov-Smirnov test is not sensitive at the tails, this does not contribute
+evidence to reject the null hypothesis.
 
 .. image:: images/http1http4ecdf-1.png
 
-In conclusion the captured HTTP datasets exhibit features which make them likely
-to actually be from different distributions, some with long outliers, some with
-no fast errors.
+In conclusion, the captured HTTP response time datasets exhibit features which
+make them likely to actually be from different distributions, some with and
+without long outliers, fast errors.
 
 Twitter, Inc. Stock Price
 ~~~~~~~~~~~~~~~~~~~~~~~~~
-The final dataset is a historical stock market sample. The following returns a
-14 day dump of minute granularity stock price data for Twitter, Inc. from Google
-Finance.
+The final dataset is a historical stock market sample. Collect a fortnight of
+minute granularity stock price data from Google Finance using:
 
 .. sourcecode:: bash
 
     wget -O twtr.dat 'http://www.google.com/finance/getprices?i=60&p=14d&f=d,c,h,l,o,v&q=TWTR'
 
-The options in the call specify:
+The HTTP parameters in the call specify:
 
-* `i=60`: Sample interval in seconds, i.e. get per-minute data. The minimum
-  sample interval available is 60 seconds.
-* `p=14d`: Show data for the previous 14 days.
-* `f=d,c,h,l,o,v`: Include columns in the result for sample interval start date,
-  sample interval closing price, sample interval high price value, sample
-  interval low price value, sample interval opening price, and sample interval
+* ``i=60``: This is the sample interval in seconds, i.e. get per-minute data.
+  The minimum sample interval available is sixy seconds.
+* ``p=14d``: Return data for the previous fourteen days.
+* ``f=d,c,h,l,o,v``: Include columns in the result for sample interval start
+  date, closing price, high price value, low price value, opening price, and
   trade count, i.e. volume.
-* `q=TWTR`: Query data for the TWTR stock symbol.
+* ``q=TWTR``: Query data for the TWTR stock symbol.
 
-After the header block in the response, the sample data looks like:
+The response includes a header block before listing the sample data which looks
+like the following:
 
 ::
 
@@ -845,12 +856,13 @@ After the header block in the response, the sample data looks like:
     3,26.14,26.27,26.13,26.21,89148
     4,26.01,26.15,26.01,26.135,36535
 
-Lines that start with an ``a`` character include an absolute timestamp value.
-Otherwise, the timestamp field value is an offset and must be added to timestamp
-value in the last previous absolute timestamp line.
+Lines starting with an ``a`` character include an absolute timestamp value.
+Otherwise, the timestamp field value is an offset and has to be added to the
+timestamp value in the last previous absolute timestamp line to get the
+absolute timestamp for the given line.
 
-The following Awk script truncates the header block and folds the timestamp
-offsets into absolute timestamp values.
+This Awk script truncates the header block and folds the timestamp offsets into
+absolute timestamp values.
 
 .. sourcecode:: bash
 
@@ -869,12 +881,12 @@ offsets into absolute timestamp values.
         print $0
       }' > twtr.tsv
 
-The output TSV file is available as ``dat/twtr.tsv`` in the
+The output TSV file is provided as ``dat/twtr.tsv`` in the
 `Github repository <https://github.com/daithiocrualaoich/kolmogorov_smirnov>`_.
 
 A supplementary dataset consisting of a single day was collected for comparison
-purposes and is available as ``dat/twtr.1.tsv``. It was processed identically to
-``dat/twtr.tsv``. The collection command was:
+purposes and is available as ``dat/twtr.1.tsv``. It was processed in the same
+manner as ``dat/twtr.tsv``. The collection command was:
 
 .. sourcecode:: bash
 
@@ -882,52 +894,54 @@ purposes and is available as ``dat/twtr.1.tsv``. It was processed identically to
 
 Trading hours on the New York Stock Exchange are weekdays 9.30am to 4pm. This
 results in long horizontal line segments for missing values in the timeseries
-plot for interval opening prices. These correspond to the overnight and weekend
+plot for interval opening prices, corresponding to the overnight and weekend
 market close periods.
 
 .. image:: images/twtr-open-timeseries-1.png
 
-The following is the opening price timeseries density plot.
+The following is the minutely opening price density plot.
 
 .. image:: images/twtr-open-density-1.png
 
-The missing value graph artifact is more pronounced in the trading volume
-timeseries. The lines joining the trading day regions can be disregarded.
+The missing value graph artifact is more pronounced in the minutely trading
+volume timeseries. The lines joining the trading day regions should be
+disregarded.
 
 .. image:: images/twtr-volume-timeseries-1.png
 
-Finally, the trading volume density plot looks surprisingly structured,
-congregating near the 17,000 trades/minute rate.
+Finally, the trading volume density plot is very structured, congregating near
+the 17,000 trades/minute rate.
 
 .. image:: images/twtr-volume-density-1.png
 
 Results
 ```````
-The reader is invited to analyse the Twitter share price as an exercise. Let me
-know from your yacht if you figure it out and make a fortune.
+The reader is invited to analyse the share price as an exercise. Let me know
+from your expensive yacht if you figure it out and make a fortune.
 
 
 A Diversion In QuickCheck
 -------------------------
-`QuickCheck`_ is insane amounts of fun writing tests and a great way to become
+`QuickCheck`_ is crazy amounts of fun writing tests and a great way to become
 comfortable in a new language.
 
 .. _QuickCheck: https://en.wikipedia.org/wiki/QuickCheck
 
-The QuickCheck idea is to write tests as properties of the inputs rather than
+The idea in QuickCheck is to write tests as properties of inputs rather than
 specific test cases. So, for instance, rather than checking whether a given
 pair of samples have a determined maximum empirical cumulative distribution
-function distance, instead a generic property is verified such as the distance
-is between zero and one for any pair of input samples.
+function distance, instead a generic property is verified. This property can be
+as simple as the distance is between zero and one for any pair of input samples
+or as constrictive as the programmer is able to create.
 
-This form of test construction means that QuickCheck can probabilistically
-check the property over a huge number of test case instances and establish much
-greater confidence of correctness than a single individual test instance could.
+This form of test construction means QuickCheck can probabilistically check the
+property over a huge number of test case instances and establish a much greater
+confidence of correctness than a single individual test instance could.
 
 It can be harder too, yes. Writing properties that tightly specify the desired
-behaviour is an art form but starting with properties that very loosely
-constrain the software behaviour is often helpful, and facilitates an evolution
-into more sharply binding criteria.
+behaviour is difficult but starting with properties that very loosely constrain
+the software behaviour is often helpful, facilitating an evolution into more
+sharply binding criteria.
 
 For a tutorial introduction to QuickCheck, John Hughes has a great
 `introduction talk <https://www.youtube.com/watch?v=zi0rHwfiX1Q>`_.
@@ -972,13 +986,13 @@ letting us know that we have been silly.
     ---- tests::test_double_n_is_greater_than_n stdout ----
         thread 'tests::test_double_n_is_greater_than_n' panicked at '[quickcheck] TEST FAILED. Arguments: (0)', /root/.cargo/registry/src/github.com-0a35038f75765ae4/quickcheck-0.2.24/src/tester.rs:113
 
-The last log line here includes the ``u32`` instance that failed the test, zero.
-Correct practice is to now create a non-probabilistic test case from the failure
-that tests that specific value. This will protect the codebase from regressions
-in the future.
+The last log line includes the ``u32`` value that failed the test, i.e. zero.
+Correct practice is to now create a non-probabilistic test case that tests this
+specific value. This protects the codebase from regressions in the future.
 
-The problem is that the property is not actually valid for the ``double``
-function because double zero is actually zero. So let's fix it.
+The problem in the example is that the property is not actually valid for the
+``double`` function because double zero is not actually greater than zero. So
+let's fix the test.
 
 .. sourcecode:: rust
 
@@ -991,18 +1005,20 @@ function because double zero is actually zero. So let's fix it.
         quickcheck(prop as fn(u32) -> bool);
     }
 
-Note how QuickCheck produced a minimal test violation, there are no smaller
-values of ``u32`` that violated the test. This is not an accident. QuickCheck
-libraries often include support for shrinking test failures to minimal examples.
-So when a test fails, QuickCheck will rerun it searching successively on smaller
-instances of the test arguments to determine the smallest violating case.
+Note also how QuickCheck produced a minimal test violation, there are no smaller
+values of ``u32`` that violated the test. This is not an accident, QuickCheck
+libraries often include features for shrinking test failures to minimal
+examples. When a test fails, QuickCheck will often rerun it searching
+successively on smaller instances of the test arguments to determine the
+smallest violating test case.
 
-The function is still broken, by the way, because it will overflow for large
-integers. QuickCheck doesn't catch this problem because the
+The function is still broken, by the way, because it overflows for large input
+values. The Rust QuickCheck doesn't catch this problem because the
 ``QuickCheck::quickcheck`` convenience runner configures the tester to produce
-random data between zero and one hundred. For this reason, you should not use
-this convenience runner in testing. Instead, configure the ``QuickCheck``
-manually with as large a random range as you can.
+random data between zero and one hundred, not in the range where the overflow
+will be evident. For this reason, you should not use the convenience runner in
+testing. Instead, configure the ``QuickCheck`` manually with as large a random
+range as you can.
 
 .. sourcecode:: rust
 
@@ -1016,28 +1032,25 @@ manually with as large a random range as you can.
     }
 
     #[test]
-    fn test_double_n_is_greater_than_n_if_n_is_greater_than_1() {
-        fn prop(n: u32) -> TestResult {
-            if n <= 1 {
-                return TestResult::discard()
-            }
-
-            TestResult::from_bool(double(n) > n)
+    fn test_double_n_is_geq_n() {
+        fn prop(n: u32) -> bool {
+            double(n) >= n
         }
 
-        check(prop as fn(u32) -> TestResult);
+        check(prop as fn(u32) -> bool);
     }
 
 This will break the test with an overflow panic. This is correct and the
-``double`` function should do something about handling overflow properly.
+``double`` function should be reimplemented to do something about handling
+overflow properly.
 
-A warning, though, if you are testing ``vec``s or strings. The number of
+A warning, though, if you are testing ``vec`` or string types. The number of
 elements in the randomly generated ``vec`` or equivalently, the length of the
-randomly generated string will be a random number between zero and the size in
-the ``StdGen`` configured. There is the potential in this to create
-unnecessarily huge ``vec``s and strings. See the example of ``NonEmptyVec``
-below for a technique to limit the size of a randomly generated ``vec`` or
-string while still using a ``StdGen`` with a large range.
+generated string will be between zero and the size in the ``StdGen`` configured.
+There is the potential in this to create unnecessarily huge ``vec`` and string
+values. See the example of ``NonEmptyVec`` below for a technique to limit the
+size of a randomly generated ``vec`` or string while still using ``StdGen`` with
+a large range.
 
 Unfortunately, you are out of luck on a 32-bit machine where the ``usize::MAX``
 will only get you to sampling correctly in ``u32``. You will need to upgrade to
@@ -1045,9 +1058,8 @@ a new machine before you can test ``u64``, sorry.
 
 By way of example, it is actually more convenient to include known failure cases
 like ``u32::max_value()`` in the QuickCheck test function rather than in a
-separate traditional test case function because the property code is available.
-So, when the QuickCheck fails for the overflow bug, add the test case like
-follows instead of in a separate function:
+separate traditional test case function. So, when the QuickCheck fails for the
+overflow bug, add the test case like follows instead of as a new function:
 
 .. sourcecode:: rust
 
@@ -1061,14 +1073,14 @@ follows instead of in a separate function:
         quickcheck(prop as fn(u32) -> bool);
     }
 
-Sometimes the property to test is not valid for some test arguments, i.e. the
-property is useful to verify but there certain combinations of probabilistically
-generated inputs that should be excluded.
+Sometimes the property to test is not valid on some test arguments, i.e. the
+property is useful to verify but there are certain combinations of
+probabilistically generated inputs that should be excluded.
 
-The Rust QuickCheck library supports this with the ``TestResult`` type. Suppose
-that instead of writing the ``double`` test property correctly, we wanted to
-just exclude the failing cases instead. This might be a practical thing to do in
-a real scenario. To do this, we rewrite the test as follows:
+The Rust QuickCheck library supports this with ``TestResult``. Suppose that
+instead of writing the ``double`` test property correctly, we wanted to just
+exclude the failing cases instead. This might be a practical thing to do in
+a real scenario and we can rewrite the test as follows:
 
 .. sourcecode:: rust
 
@@ -1081,30 +1093,32 @@ a real scenario. To do this, we rewrite the test as follows:
                 return TestResult::discard()
             }
 
-            TestResult::from_bool(double(n) > n)
+            let actual = double(n);
+
+            TestResult::from_bool(actual > n)
         }
 
         quickcheck(prop as fn(u32) -> TestResult);
     }
 
-Here the cases where the property legimately doesn't hold are excluded by
-returning a ``TestResult::discard()``. This causes QuickCheck to retry the test
-with the next randomly generated ``u32``.
+Here, the cases where the property legimately doesn't hold are excluded by
+returning``TestResult::discard()``. This causes QuickCheck to retry the test
+with the next randomly generated value instead.
 
 Note also that the function return type is now ``TestResult`` and that
-``TestResult::from_bool`` is required around the test condition.
+``TestResult::from_bool`` is needed for the test condition.
 
 An alternative approach is to create a wrapper type in the test code which only
 permits valid input and to rewrite the tests to take this type as the
 probabilistically generated input instead.
 
 For example, suppose you want to ensure that QuickCheck only generates positive
-integers for use in your property verification, you could add a wrapper type
-``PositiveInteger``. For QuickCheck to work, you then have to implement the
-``Arbitrary`` trait for this new type.
+integers for use in your property verification. You add a wrapper type
+``PositiveInteger`` and now in order for QuickCheck to work, you have to
+implement the ``Arbitrary`` trait for this new type.
 
 The minimum requirement for an ``Arbitrary`` implementation is a function called
-``arbitrary`` taking a ``Gen`` random generator and producing a
+``arbitrary`` taking a ``Gen`` random generator and producing a random
 ``PositiveInteger``. New implementations should always leverage existing
 ``Arbitrary`` implementations, and so ``PositiveInteger`` generates a random
 ``u64`` using ``u64::arbitrary()`` and constrains it to be greater than zero.
@@ -1134,9 +1148,9 @@ The minimum requirement for an ``Arbitrary`` implementation is a function called
         }
     }
 
-Note also the implementation of ``shrink()`` here, again in terms of the
-existing ``u64::shrink()``. This method is optional, if it is unimplemented then
-QuickCheck won't minimise property violations for the new wrapper type.
+Note also the implementation of ``shrink()`` here, again in terms of an
+existing ``u64::shrink()``. This method is optional and unless implemented
+QuickCheck will not minimise property violations for the new wrapper type.
 
 Use ``PositiveInteger`` like follows:
 
@@ -1149,7 +1163,7 @@ Use ``PositiveInteger`` like follows:
     }
 
     #[test]
-    fn test_square_n_for_positive_is_geq_1() {
+    fn test_square_n_for_positive_n_is_geq_1() {
         fn prop(n: PositiveInteger) -> bool {
             square(n.value) >= 1
         }
@@ -1157,12 +1171,13 @@ Use ``PositiveInteger`` like follows:
         quickcheck(prop as fn(PositiveInteger) -> bool);
     }
 
-There is no need to use ``TestResult::discard()`` to ignore the failure case
-where n is zero.
+There is no need now for ``TestResult::discard()`` to ignore the failure case
+for zero.
 
 Finally, wrappers can be added for more complicated types too. A commonly
-useful container type generator is ``NonEmptyVec`` which excludes the empty
-``vec``.
+useful container type generator is ``NonEmptyVec`` which produces a random
+``vec`` of the parameterised type but excludes the empty ``vec`` case. The
+generic type must itself implement ``Arbitrary`` for this to work.
 
 .. sourcecode:: rust
 
