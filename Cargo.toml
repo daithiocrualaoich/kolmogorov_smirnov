@@ -1,7 +1,7 @@
 [package]
 name = "kolmogorov_smirnov"
 description = "Implementation of the Kolmogorov-Smirnov statistical test as a Rust library."
-version = "0.1.0"
+version = "1.0.0"
 homepage = "http://daithiocrualaoich.github.io/kolmogorov_smirnov"
 repository = "https://github.com/daithiocrualaoich/kolmogorov_smirnov"
 authors = ["Daithi O Crualaoich <daithi.ocrualaoich@gmail.com>"]

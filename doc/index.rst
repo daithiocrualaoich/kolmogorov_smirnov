@@ -327,7 +327,7 @@ incorporate into your programs. Add the dependency to your ``Cargo.toml`` file.
 ::
 
     [dependencies]
-    kolmogorov_smirnov = "0.1.0"
+    kolmogorov_smirnov = "1.0.0"
 
 Then to use the test, call the ``kolmogorov_smirnov::test`` function with the
 two samples to compare and the desired confidence level.
