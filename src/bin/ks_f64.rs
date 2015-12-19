@@ -68,8 +68,12 @@ fn main() {
     let result = ks::test(&xs, &ys, 0.95);
 
     if result.is_rejected {
-        println!("Samples are from different distributions.")
+        println!("Samples are from different distributions.");
     } else {
-        println!("Samples are from the same distributions.")
+        println!("Samples are from the same distributions.");
     }
+
+    println!("test statistic = {}", result.statistic);
+    println!("critical value = {}", result.critical_value);
+    println!("confidence = {}", result.confidence);
 }

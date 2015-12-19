@@ -120,9 +120,8 @@ that the samples are drawn from the same distribution. This means we can build
 a statistic test that rejects this null hypothesis for a given confidence level
 if :math:`D` exceeds an easily calculable value.
 
-Tables of critical values are available. The table
-`here <https://www.webdepot.umontreal.ca/Usagers/angers/MonDepotPublic/STT3500H10/Critical_KS.pdf>`_
-describes a test implementation for samples sizes greater than twelve where we
+Tables of critical values are available, for instance the `SOEST tables`_
+describe a test implementation for samples sizes greater than twelve where we
 reject the null hypothesis, i.e. decide that the samples are from different
 distributions, if
 
@@ -132,6 +131,8 @@ distributions, if
 
 Where n and m are the sample sizes. For :math:`\alpha = 0.05` corresponding to
 95% confidence level, the value is :math:`c(\alpha) = 1.36`.
+
+.. _SOEST tables: https://www.webdepot.umontreal.ca/Usagers/angers/MonDepotPublic/STT3500H10/Critical_KS.pdf
 
 Numerical Recipes describes a direct calculation that works well for:
 
@@ -262,11 +263,11 @@ on past.
 `Travis CI`_ has excellent support for building Rust projects, including with
 the beta, and nightly versions. It is simple to set up too by configuring a
 ``travis.yml`` according to the
-`Travis documentation <https://docs.travis-ci.com/user/languages/rust>`_. The
-Travis CI build for this project, for instance, is
-`here <https://travis-ci.org/daithiocrualaoich/kolmogorov_smirnov>`_.
+`Travis documentation <https://docs.travis-ci.com/user/languages/rust>`_. See
+the `Travis CI build for this project`_, for instance.
 
 .. _Travis CI: https://travis-ci.org
+.. _Travis CI build for this project: https://travis-ci.org/daithiocrualaoich/kolmogorov_smirnov
 
 Rust has a formatter in `rustfmt`_ and a lint in `rust-clippy`_. The formatter
 is a simple install using ``cargo install`` and provides a binary command. The
@@ -440,6 +441,167 @@ widths, heights and supports.
 
 .. image:: images/n01n02n11-1.png
 
+Results
+```````
+The Kolmogorov-Smirnov test is successful in establishing the :math:`N(0, 1)`
+datasets are all from the same distribution in all possible permutations of
+the test.
+
+.. sourcecode:: bash
+
+    # cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_0_1.1.tsv
+    Samples are from the same distributions.
+    test statistic = 0.0399169921875
+    critical value = 0.08631790804925708
+    confidence = 0.95
+
+    $ cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_0_1.2.tsv
+    Samples are from the same distributions.
+    test statistic = 0.0595703125
+    critical value = 0.08631790804925708
+    confidence = 0.95
+
+    ...
+
+Save yourself the trouble in reproduction by running this instead:
+
+.. sourcecode:: bash
+
+    for I in dat/normal_0_1.*
+    do
+        for J in dat/normal_0_1.*
+        do
+            if [[ "$I" < "$J" ]]
+            then
+                echo $I $J
+                cargo run -q --bin ks_f64 $I $J
+                echo
+                echo
+            fi
+        done
+    done
+
+The :math:`N(1, 1)` datasets also pass in all combinations when tested against
+each other.
+
+However, :math:`N(0, 2)` though, passes for all combinations but that between
+``dat/normal_0_2.tsv`` and ``dat/normal_0_2.1.tsv`` where it fails.
+
+.. sourcecode:: bash
+
+    # cargo run -q --bin ks_f64 dat/normal_0_2.tsv dat/normal_0_2.1.tsv
+    Samples are from different distributions.
+    test statistic = 0.102783203125
+    critical value = 0.08631790804925708
+    confidence = 0.95
+
+This is a demonstration of how the Kolmogorov-Smirnov test can be sensitive to
+location because here the mean of the ``dat/normal_0_2.1.tsv`` is shifted quite
+far from the origin.
+
+This is the density.
+
+.. image:: images/n021-1.png
+
+And superimposed with the density from ``dat/normal_0_2.tsv``.
+
+.. image:: images/n02n021-1.png
+
+The plot for ``dat/normal_0_2.1.tsv`` is the taller line in this graph. Notice,
+in particular, that the mean is shifted left a lot in comparison to the
+``dat/normal_0_2.tsv``. See also the chunk of non-overlapping weight on the
+right hand slope.
+
+The difference in means is confirmed by calculation. The dataset for
+``dat/normal_0_2.tsv`` has mean 0.001973723, whereas the dataset for
+``dat/normal_0_2.1.tsv`` a mean of -0.2145779. By comparison, the other
+:math:`N(0, 2)` dataset means are -0.1308625, -0.08537648. and -0.01374325.
+
+Looking at the empirical cumulative density functions of the false negative
+comparison, we see a significant gap between the curves between 0 and 1.
+
+.. image:: images/n02n021ecdf-1.png
+
+For comparison, here are the overlaid empirical cumulative density functions
+for the other :math:`N(0, 2)` tests.
+
+.. image:: images/n02n022ecdf-1.png
+.. image:: images/n02n023ecdf-1.png
+.. image:: images/n02n024ecdf-1.png
+
+This is one false negative in thirty unique test pairs.
+
+Turning now to the tests that should be expected to fail, the following block
+will run the comparisons between datasets from different distributions.
+
+.. sourcecode:: bash
+
+    for I in dat/normal_0_1.*
+    do
+        for J in dat/normal_0_2.*
+        do
+            echo $I $J
+            cargo run -q --bin ks_f64 $I $J
+            echo
+            echo
+        done
+    done
+
+The :math:`N(0, 1)` to :math:`N(1, 1)` and :math:`N(0, 2)` to :math:`N(0, 1)`
+tests reject the null hypothesis correctly in every variation. This illustrates
+how the Kolmogorov-Smirnov test is sensitive to changes in mean.
+
+But there are ten false positives in the comparison between datasets from
+:math:`N(0, 1)` against :math:`N(0, 2)`.
+
+``dat/normal_0_1.2.tsv`` is reported incorrectly as being from the same
+distribution as the following datasets.
+
+* ``dat/normal_0_2.tsv``
+* ``dat/normal_0_2.2.tsv``
+* ``dat/normal_0_2.3.tsv``
+* ``dat/normal_0_2.4.tsv``
+
+``dat/normal_0_1.3.tsv`` is a false positive with:
+
+* ``dat/normal_0_2.3.tsv``
+* ``dat/normal_0_2.4.tsv``
+
+And ``dat/normal_0_1.4.tsv`` is a false positive with:
+
+* ``dat/normal_0_2.1.tsv``
+* ``dat/normal_0_2.2.tsv``
+* ``dat/normal_0_2.3.tsv``
+* ``dat/normal_0_2.4.tsv``
+
+We'll only examine one of these failures, that between ``dat/normal_0_1.2.tsv``
+and ``dat/normal_0_2.2.tsv``. The overlaid density and empirical cumulative
+density functions appear to show a strong difference.
+
+.. image:: images/n012n022-1.png
+.. image:: images/n012n022ecdf-1.png
+
+The problem is lack of samples. Both of these datasets have 256 samples and the
+the 95% confidence critical value is 0.1202081528017131. This is a large
+difference to demonstrate and in the case of this test the :math:`D` test
+statistic is actually 0.08203125.
+
+There is not enough evidence to reject the null hypothesis.
+
+Notice that of the false positives, only the one between
+``dat/normal_0_1.2.tsv`` and ``dat/normal_0_2.tsv`` happens with a dataset
+containing 8192 samples. In this test, the critical value is 0.08631790804925708
+and the test statistic scraps just underneath at 0.0828857421875.
+
+In the case of comparing two samples of size 8192, the critical value is a very
+discriminating 0.02125.
+
+In total there are ten false positives in 75 tests.
+
+The lesson is that false positives are more common and especially with small
+datasets. When using the Kolmogorov-Smirnov test in production systems, tend to
+use higher confidence levels when larger datasets cannot be available.
+
 http://twitter.com Response Times
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Less artificially, and more likely in software operations and monitoring, are
@@ -564,6 +726,94 @@ other graphs but there is far more horizontal axis support to compensate. The
 definition of a probability density means that the area under the graph in all
 the density plots must sum to 1.
 
+Results
+```````
+Restricting attention to just the total time value, there are ten test dataset
+combinations all of which are false negatives in comparison save for the
+comparison between ``dat/http_ttime.1.tsv`` ``dat/http_ttime.4.tsv``
+
+.. sourcecode:: bash
+
+    for I in dat/http_ttime.*
+    do
+        for J in dat/http_ttime.*
+        do
+            if [[ "$I" < "$J" ]]
+            then
+                echo $I $J
+                cargo run -q --bin ks_f64 $I $J
+                echo
+                echo
+            fi
+        done
+    done
+
+The only correctly evaluated test returns the following test data:
+
+.. sourcecode:: bash
+
+    # cargo run -q --bin ks_f64 dat/http_ttime.1.tsv dat/http_ttime.4.tsv
+    Samples are from the same distributions.
+    test statistic = 0.0703125
+    critical value = 0.1202081528017131
+    confidence = 0.95
+
+For example here is the timeseries and density plot for ttime in the
+``dat/http_ttime.1.tsv`` dataset.
+
+.. image:: images/http1-timeseries-1.png
+.. image:: images/http1-density-1.png
+
+This has some similarity to the observations in ``dat/http_ttime.tsv`` but a
+far shorter tail.
+
+In fact, the datasets are all very different. Here are the other density plots.
+
+``dat/http_ttime.2.tsv`` exhibits a spike of failures which are of short
+duration and contribute the weight on the left of the graph.
+
+.. image:: images/http2-density-1.png
+
+By contrast ``dat/http_ttime.3.tsv`` has no fast failures and the weight is
+concentrated around .9s to 1s.
+
+.. image:: images/http3-density-1.png
+
+``dat/http_ttime.4.tsv`` has a long tail for an outlier.
+
+.. image:: images/http4-density-1.png
+
+From inspection of the empirical cumulative density functions, it looks that the
+most likely match which failed could have been between ``dat/http_ttime.tsv``
+and ``dat/http_ttime.4.tsv``. Other than the passing test, this is the
+comparison with the smallest test statistic.
+
+.. sourcecode:: bash
+
+    # cargo run -q --bin ks_f64 dat/http_ttime.4.tsv dat/http_ttime.tsv
+    Samples are from different distributions.
+    test statistic = 0.1368408203125
+    critical value = 0.08631790804925708
+    confidence = 0.95
+
+Even still, this is not a close match. Here is the plot of empirical cumulative
+density functions showing a very different profile on the error request times
+to the left of the diagram.
+
+.. image:: images/httphttp4ecdf-1.png
+
+As for the passing match, it turns out that indeed ``dat/http_ttime.1.tsv``
+and ``dat/http_ttime.4.tsv`` are quite similar. This would be more apparent but
+for the outlier in ``dat/http_ttime.4.tsv``. But since the Kolmogorov-Smirnov
+test is not as sensitive at the tails, this does not contribute evidence to
+reject the null hypothesis.
+
+.. image:: images/http1http4ecdf-1.png
+
+In conclusion the captured HTTP datasets exhibit features which make them likely
+to actually be from different distributions, some with long outliers, some with
+no fast errors.
+
 Twitter, Inc. Stock Price
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 The final dataset is a historical stock market sample. The following returns a
@@ -650,6 +900,11 @@ Finally, the trading volume density plot looks surprisingly structured,
 congregating near the 17,000 trades/minute rate.
 
 .. image:: images/twtr-volume-density-1.png
+
+Results
+```````
+The reader is invited to analyse the Twitter share price as an exercise. Let me
+know from your yacht if you figure it out and make a fortune.
 
 
 A Diversion In QuickCheck

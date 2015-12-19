@@ -35,9 +35,15 @@ the 0.95 confidence level.
 
     $ cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_0_1.1.tsv
     Samples are from the same distributions.
+    test statistic = 0.0399169921875
+    critical value = 0.08631790804925708
+    confidence = 0.95
 
     $ cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_1_1.1.tsv
     Samples are from different distributions.
+    test statistic = 0.361572265625
+    critical value = 0.08631790804925708
+    confidence = 0.95
 
 
 Developing Kolmogorov-Smirnov

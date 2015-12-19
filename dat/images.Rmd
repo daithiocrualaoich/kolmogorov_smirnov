@@ -14,9 +14,29 @@ normal01 <- read.table("normal_0_1.tsv", sep="\t", header=FALSE)
 colnames(normal01) <- c("x")
 normal01$ecdf <- ecdf(normal01$x)(normal01$x)
 
+normal012 <- read.table("normal_0_1.2.tsv", sep="\t", header=FALSE)
+colnames(normal012) <- c("x")
+normal012$ecdf <- ecdf(normal012$x)(normal012$x)
+
 normal02 <- read.table("normal_0_2.tsv", sep="\t", header=FALSE)
 colnames(normal02) <- c("x")
 normal02$ecdf <- ecdf(normal02$x)(normal02$x)
+
+normal021 <- read.table("normal_0_2.1.tsv", sep="\t", header=FALSE)
+colnames(normal021) <- c("x")
+normal021$ecdf <- ecdf(normal021$x)(normal021$x)
+
+normal022 <- read.table("normal_0_2.2.tsv", sep="\t", header=FALSE)
+colnames(normal022) <- c("x")
+normal022$ecdf <- ecdf(normal022$x)(normal022$x)
+
+normal023 <- read.table("normal_0_2.3.tsv", sep="\t", header=FALSE)
+colnames(normal023) <- c("x")
+normal023$ecdf <- ecdf(normal023$x)(normal023$x)
+
+normal024 <- read.table("normal_0_2.4.tsv", sep="\t", header=FALSE)
+colnames(normal024) <- c("x")
+normal024$ecdf <- ecdf(normal024$x)(normal024$x)
 
 normal11 <- read.table("normal_1_1.tsv", sep="\t", header=FALSE)
 colnames(normal11) <- c("x")
@@ -31,74 +51,45 @@ http$wait <- as.numeric(as.character(http$wait))
 http$idx <- 1:nrow(http)
 http$ttime_ecdf <- ecdf(http$ttime)(http$ttime)
 
+http1 <- read.table("http.1.tsv", sep="\t", header=TRUE)
+colnames(http1) <- c("ctime", "dtime", "ttime", "wait")
+http1$ctime <- as.numeric(as.character(http1$ctime))
+http1$dtime <- as.numeric(as.character(http1$dtime))
+http1$ttime <- as.numeric(as.character(http1$ttime))
+http1$wait <- as.numeric(as.character(http1$wait))
+http1$idx <- 1:nrow(http1)
+http1$ttime_ecdf <- ecdf(http1$ttime)(http1$ttime)
+
+http2 <- read.table("http.2.tsv", sep="\t", header=TRUE)
+colnames(http2) <- c("ctime", "dtime", "ttime", "wait")
+http2$ctime <- as.numeric(as.character(http2$ctime))
+http2$dtime <- as.numeric(as.character(http2$dtime))
+http2$ttime <- as.numeric(as.character(http2$ttime))
+http2$wait <- as.numeric(as.character(http2$wait))
+http2$idx <- 1:nrow(http1)
+http2$ttime_ecdf <- ecdf(http2$ttime)(http2$ttime)
+
+http3 <- read.table("http.3.tsv", sep="\t", header=TRUE)
+colnames(http3) <- c("ctime", "dtime", "ttime", "wait")
+http3$ctime <- as.numeric(as.character(http3$ctime))
+http3$dtime <- as.numeric(as.character(http3$dtime))
+http3$ttime <- as.numeric(as.character(http3$ttime))
+http3$wait <- as.numeric(as.character(http3$wait))
+http3$idx <- 1:nrow(http1)
+http3$ttime_ecdf <- ecdf(http3$ttime)(http3$ttime)
+
+http4 <- read.table("http.4.tsv", sep="\t", header=TRUE)
+colnames(http4) <- c("ctime", "dtime", "ttime", "wait")
+http4$ctime <- as.numeric(as.character(http4$ctime))
+http4$dtime <- as.numeric(as.character(http4$dtime))
+http4$ttime <- as.numeric(as.character(http4$ttime))
+http4$wait <- as.numeric(as.character(http4$wait))
+http4$idx <- 1:nrow(http1)
+http4$ttime_ecdf <- ecdf(http4$ttime)(http4$ttime)
+
 twtr <- read.table("twtr.tsv", sep="\t", header=TRUE)
 twtr$open_ecdf <- ecdf(twtr$open)(twtr$open)
 twtr$volume_ecdf <- ecdf(twtr$volume)(twtr$volume)
-```
-
-## N(0,1) Density
-
-```{r n01, echo=FALSE, }
-ggplot(normal01, aes(x=x)) +
-  stat_density(alpha=0.5) +
-  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
-  scale_y_continuous(labels=comma)
-```
-
-## N(0,1) Empirical Cumulative Distribution Function
-
-```{r n01ecdf, echo=FALSE, }
-ggplot(normal01, aes(x=x, y=ecdf)) +
-  geom_line(alpha=0.5, size=1) +
-  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
-  scale_y_continuous(labels=comma)
-```
-
-## N(0,2) Density
-
-```{r n02, echo=FALSE}
-ggplot(normal02, aes(x=x)) +
-  stat_density(alpha=0.5) +
-  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
-  scale_y_continuous(labels=comma)
-```
-
-## N(0,2) Empirical Cumulative Distribution Function
-
-```{r n02ecdf, echo=FALSE, }
-ggplot(normal02, aes(x=x, y=ecdf)) +
-  geom_line(alpha=0.5, size=1) +
-  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
-  scale_y_continuous(labels=comma)
-```
-
-## N(1,1) Density
-
-```{r n11, echo=FALSE}
-ggplot(normal11, aes(x=x)) +
-  stat_density(alpha=0.5) +
-  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
-  scale_y_continuous(labels=comma)
-```
-
-## N(1,1) Empirical Cumulative Distribution Function
-
-```{r n11ecdf, echo=FALSE, }
-ggplot(normal11, aes(x=x, y=ecdf)) +
-  geom_line(alpha=0.5, size=1) +
-  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
-  scale_y_continuous(labels=comma)
-```
-
-## N(0,1), N(0,2), N(1,1) Density
-
-```{r n01n02n11, echo=FALSE}
-ggplot(normal01, aes(x=x)) +
-  stat_density(alpha=0.5) +
-  stat_density(data=normal02, alpha=0.5) +
-  stat_density(data=normal11, alpha=0.5) +
-  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
-  scale_y_continuous(labels=comma)
 ```
 
 ## N(0,1), N(0,2) Empirical Cumulative Distribution Function
@@ -121,12 +112,119 @@ ggplot(normal01, aes(x=x, y=ecdf)) +
   scale_y_continuous(labels=comma)
 ```
 
-## N(0,2), N(1,1) Empirical Cumulative Distribution Function
+## N(0,1) Density
 
-```{r n02n11ecdf, echo=FALSE}
+```{r n01, echo=FALSE, }
+ggplot(normal01, aes(x=x)) +
+  stat_density(alpha=0.5, colour="black") +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## N(0,2) Density
+
+```{r n02, echo=FALSE}
+ggplot(normal02, aes(x=x)) +
+  stat_density(alpha=0.5, colour="black") +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## N(1,1) Density
+
+```{r n11, echo=FALSE}
+ggplot(normal11, aes(x=x)) +
+  stat_density(alpha=0.5, colour="black") +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## N(0,1), N(0,2), N(1,1) Density
+
+```{r n01n02n11, echo=FALSE}
+ggplot(normal01, aes(x=x)) +
+  stat_density(alpha=0.5, colour="mistyrose4", fill="mistyrose4") +
+  stat_density(data=normal02, alpha=0.5, colour="black") +
+  stat_density(data=normal11, alpha=0.5, colour="slateblue4", fill="slateblue4") +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## N(0,2)-1 Density
+
+```{r n021, echo=FALSE}
+ggplot(normal021, aes(x=x)) +
+  stat_density(alpha=0.5, colour="black") +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## N(0,2), N(0,2)-1 Density
+
+```{r n02n021, echo=FALSE}
+ggplot(normal02, aes(x=x)) +
+  stat_density(alpha=0.5, colour="mistyrose4", fill="mistyrose4") +
+  stat_density(data=normal021, alpha=0.5, colour="slateblue4", fill="slateblue4") +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## N(0,2), N(0,2)-1 Empirical Cumulative Distribution Function
+
+```{r n02n021ecdf, echo=FALSE}
 ggplot(normal02, aes(x=x, y=ecdf)) +
   geom_line(alpha=0.5, size=1) +
-  geom_line(data=normal11, alpha=0.5, size=1) +
+  geom_line(data=normal021, alpha=0.5, size=1) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## N(0,2), N(0,2)-2 Empirical Cumulative Distribution Function
+
+```{r n02n022ecdf, echo=FALSE}
+ggplot(normal02, aes(x=x, y=ecdf)) +
+  geom_line(alpha=0.5, size=1) +
+  geom_line(data=normal022, alpha=0.5, size=1) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## N(0,2), N(0,2)-3 Empirical Cumulative Distribution Function
+
+```{r n02n023ecdf, echo=FALSE}
+ggplot(normal02, aes(x=x, y=ecdf)) +
+  geom_line(alpha=0.5, size=1) +
+  geom_line(data=normal023, alpha=0.5, size=1) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## N(0,2), N(0,2)-4 Empirical Cumulative Distribution Function
+
+```{r n02n024ecdf, echo=FALSE}
+ggplot(normal02, aes(x=x, y=ecdf)) +
+  geom_line(alpha=0.5, size=1) +
+  geom_line(data=normal024, alpha=0.5, size=1) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## N(0,1)-2, N(0,2)-2 Density
+
+```{r n012n022, echo=FALSE}
+ggplot(normal022, aes(x=x)) +
+  stat_density(alpha=0.5, colour="slateblue4", fill="slateblue4") +
+  stat_density(data=normal012, alpha=0.5, colour="mistyrose4", fill="mistyrose4") +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## N(0,1)-2, N(0,2)-2 Empirical Cumulative Distribution Function
+
+```{r n012n022ecdf, echo=FALSE}
+ggplot(normal022, aes(x=x, y=ecdf)) +
+  geom_line(alpha=0.5, size=1) +
+  geom_line(data=normal012, alpha=0.5, size=1) +
   theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
   scale_y_continuous(labels=comma)
 ```
@@ -144,7 +242,7 @@ ggplot(http, aes(x=idx, y=ttime)) +
 
 ```{r http-density, echo=FALSE}
 ggplot(http, aes(x=ttime)) +
-  stat_density(alpha=0.5) +
+  stat_density(alpha=0.5, colour="black") +
   theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
   scale_y_continuous(labels=comma)
 ```
@@ -154,6 +252,71 @@ ggplot(http, aes(x=ttime)) +
 ```{r http-ecdf, echo=FALSE, }
 ggplot(http, aes(x=ttime, y=ttime_ecdf)) +
   geom_line(alpha=0.5, size=1) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## HTTP1 Timeseries
+
+```{r http1-timeseries, echo=FALSE}
+ggplot(http1, aes(x=idx, y=ttime)) +
+  geom_line(alpha=0.5) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## HTTP1 Density
+
+```{r http1-density, echo=FALSE}
+ggplot(http1, aes(x=ttime)) +
+  stat_density(alpha=0.5, colour="black") +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## HTTP2 Density
+
+```{r http2-density, echo=FALSE}
+ggplot(http2, aes(x=ttime)) +
+  stat_density(alpha=0.5, colour="black") +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## HTTP3 Density
+
+```{r http3-density, echo=FALSE}
+ggplot(http3, aes(x=ttime)) +
+  stat_density(alpha=0.5, colour="black") +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## HTTP4 Density
+
+```{r http4-density, echo=FALSE}
+ggplot(http4, aes(x=ttime)) +
+  stat_density(alpha=0.5, colour="black") +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## HTTP, HTTP4 Empirical Cumulative Distribution Function
+
+```{r httphttp4ecdf, echo=FALSE}
+ggplot(http, aes(x=ttime, y=ttime_ecdf)) +
+  geom_line(alpha=0.5, size=1) +
+  geom_line(data=http4, alpha=0.5, size=1) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## HTTP1, HTTP4 Empirical Cumulative Distribution Function
+
+```{r http1http4ecdf, echo=FALSE}
+ggplot(http1, aes(x=ttime, y=ttime_ecdf)) +
+  geom_line(alpha=0.5, size=1) +
+  geom_line(data=http4, alpha=0.5, size=1) +
   theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
   scale_y_continuous(labels=comma)
 ```
@@ -171,7 +334,7 @@ ggplot(twtr, aes(x=timestamp, y=open)) +
 
 ```{r twtr-open-density, echo=FALSE}
 ggplot(twtr, aes(x=open)) +
-  stat_density(alpha=0.5) +
+  stat_density(alpha=0.5, colour="black") +
   theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
   scale_y_continuous(labels=comma)
 ```
@@ -198,7 +361,7 @@ ggplot(twtr, aes(x=timestamp, y=volume)) +
 
 ```{r twtr-volume-density, echo=FALSE}
 ggplot(twtr, aes(x=volume)) +
-  stat_density(alpha=0.5) +
+  stat_density(alpha=0.5, colour="black") +
   theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
   # Thousands commas on x axis for large integer trading volumes values.
   scale_x_continuous(labels=comma) +
