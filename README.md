@@ -13,6 +13,9 @@ incorporate into your programs. Add the dependency to your `Cargo.toml` file.
     [dependencies]
     kolmogorov_smirnov = "0.1.0"
 
+Information about the latest published crate is available on
+[crates.io](https://crates.io/crates/kolmogorov_smirnov).
+
 Using the test is also straightforward, call the `kolmogorov_smirnov::test`
 function with the two samples to compare and the desired confidence level.
 
@@ -139,6 +142,31 @@ publication.
 To regenerate the diagrams, run the following.
 
     docker run -v "$(pwd):/statistics" --workdir=/statistics/dat statistics R -e "rmarkdown::render('images.Rmd')"
+
+
+Publishing on crates.io
+-----------------------
+Instructions for uploading to the crate repository at crates.io are
+[here](http://doc.crates.io/crates-io.html#publishing-crates). First login to
+the site using:
+
+    cargo login <token>
+
+Token can be found from [crates.io/me](https://crates.io/me). To make a release,
+first clean and build the package:
+
+    git stash
+    cargo clean
+    cargo package
+
+Inspect the produced package under `target/package/kolmogorov_smirnov-<version>`
+
+When happy to publish:
+
+    cargo publish
+
+And check out the new update at
+[crates.io/crates/kolmogorov_smirnov](https://crates.io/crates/kolmogorov_smirnov).
 
 
 License
