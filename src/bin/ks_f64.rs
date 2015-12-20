@@ -48,5 +48,5 @@ fn main() {
 
     println!("test statistic = {}", result.statistic);
     println!("critical value = {}", result.critical_value);
-    println!("confidence = {}", result.confidence);
+    println!("reject_probability = {}", result.reject_probability);
 }

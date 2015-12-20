@@ -18,6 +18,9 @@ exclude = [
 ]
 
 [[bin]]
+name = "critical_values"
+
+[[bin]]
 name = "normal"
 
 [[bin]]

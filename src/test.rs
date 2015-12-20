@@ -6,6 +6,7 @@ use std::cmp::{min, Ord, Ordering};
 pub struct TestResult {
     pub is_rejected: bool,
     pub statistic: f64,
+    pub reject_probability: f64,
     pub critical_value: f64,
     pub confidence: f64,
 }
@@ -32,27 +33,27 @@ pub struct TestResult {
 /// let result = ks::test(&xs, &ys, confidence);
 ///
 /// if result.is_rejected {
-///     println!("{:?} and {:?} are not from the same distribution with confidence {}.",
-///       xs, ys, confidence);
+///     println!("{:?} and {:?} are not from the same distribution with probability {}.",
+///       xs, ys, result.reject_probability);
 /// }
 /// ```
 pub fn test<T: Ord + Clone>(xs: &[T], ys: &[T], confidence: f64) -> TestResult {
     assert!(xs.len() > 0 && ys.len() > 0);
     assert!(0.0 < confidence && confidence < 1.0);
 
-    // Only support samples of size > 12 initially.
-    assert!(xs.len() > 12 && ys.len() > 12);
-
-    // Only support confidence == 0.95 initially.
-    assert_eq!(confidence, 0.95);
+    // Only supports samples of size > 7.
+    assert!(xs.len() > 7 && ys.len() > 7);
 
     let statistic = calculate_statistic(xs, ys);
     let critical_value = calculate_critical_value(xs.len(), ys.len(), confidence);
-    let is_rejected = statistic > critical_value;
+
+    let reject_probability = calculate_reject_probability(statistic, xs.len(), ys.len());
+    let is_rejected = reject_probability > confidence;
 
     TestResult {
         is_rejected: is_rejected,
         statistic: statistic,
+        reject_probability: reject_probability,
         critical_value: critical_value,
         confidence: confidence,
     }
@@ -112,8 +113,8 @@ impl Ord for OrderableF64 {
 /// let result = ks::test_f64(&xs, &ys, confidence);
 ///
 /// if result.is_rejected {
-///     println!("{:?} and {:?} are not from the same distribution with confidence {}.",
-///       xs, ys, confidence);
+///     println!("{:?} and {:?} are not from the same distribution with probability {}.",
+///       xs, ys, result.reject_probability);
 /// }
 /// ```
 pub fn test_f64(xs: &[f64], ys: &[f64], confidence: f64) -> TestResult {
@@ -121,24 +122,6 @@ pub fn test_f64(xs: &[f64], ys: &[f64], confidence: f64) -> TestResult {
     let ys: Vec<OrderableF64> = ys.iter().map(|&f| OrderableF64::new(f)).collect();
 
     test(&xs, &ys, confidence)
-}
-
-/// Calculate the critical value for the two sample Kolmogorov-Smirnov test.
-fn calculate_critical_value(n1: usize, n2: usize, confidence: f64) -> f64 {
-    assert!(n1 > 0 && n2 > 0);
-    assert!(0.0 < confidence && confidence < 1.0);
-
-    // Only support samples of size > 12 initially.
-    assert!(n1 > 12 && n2 > 12);
-
-    // Only support confidence == 0.95 initially.
-    assert_eq!(confidence, 0.95);
-
-    let n1 = n1 as f64;
-    let n2 = n2 as f64;
-
-    let factor = (n1 + n2) / (n1 * n2);
-    1.36 * factor.sqrt()
 }
 
 /// Calculate the test statistic for the two sample Kolmogorov-Smirnov test.
@@ -214,6 +197,105 @@ fn calculate_statistic<T: Ord + Clone>(xs: &[T], ys: &[T]) -> f64 {
     statistic
 }
 
+/// Calculate the probability that the null hypothesis is false for a two sample
+/// Kolmogorov-Smirnov test. Can only reject the null hypothesis if this
+/// evidence exceeds the confidence level required.
+fn calculate_reject_probability(statistic: f64, n1: usize, n2: usize) -> f64 {
+    // Only supports samples of size > 7.
+    assert!(n1 > 7 && n2 > 7);
+
+    let n1 = n1 as f64;
+    let n2 = n2 as f64;
+
+    let factor = ((n1 * n2) / (n1 + n2)).sqrt();
+    let term = (factor + 0.12 + 0.11 / factor) * statistic;
+
+    let reject_probability = 1.0 - probability_kolmogorov_smirnov(term);
+
+    assert!(0.0 <= reject_probability && reject_probability <= 1.0);
+    reject_probability
+}
+
+/// Calculate the critical value for the two sample Kolmogorov-Smirnov test.
+///
+/// # Panics
+///
+/// No convergence panic if the binary search does not locate the critical
+/// value in less than 200 iterations.
+///
+/// # Examples
+///
+/// ```
+/// extern crate kolmogorov_smirnov as ks;
+///
+/// let critical_value = ks::calculate_critical_value(256, 256, 0.95);
+/// println!("Critical value at 95% confidence for samples of size 256 is {}",
+///       critical_value);
+/// ```
+pub fn calculate_critical_value(n1: usize, n2: usize, confidence: f64) -> f64 {
+    assert!(0.0 < confidence && confidence < 1.0);
+
+    // Only supports samples of size > 7.
+    assert!(n1 > 7 && n2 > 7);
+
+    // The test statistic is between zero and one so can binary search quickly
+    // for the critical value.
+    let mut low = 0.0;
+    let mut high = 1.0;
+
+    for _ in 1..200 {
+        if low + 1e-8 >= high {
+            return high;
+        }
+
+        let mid = low + (high - low) / 2.0;
+        let reject_probability = calculate_reject_probability(mid, n1, n2);
+
+        if reject_probability > confidence {
+            // Maintain invariant that reject_probability(high) > confidence.
+            high = mid;
+        } else {
+            // Maintain invariant that reject_probability(low) <= confidence.
+            low = mid;
+        }
+    }
+
+    panic!("No convergence in calculate_critical_value({}, {}, {}).",
+           n1,
+           n2,
+           confidence);
+}
+
+/// Calculate the Kolmogorov-Smirnov probability function.
+fn probability_kolmogorov_smirnov(lambda: f64) -> f64 {
+    if lambda == 0.0 {
+        return 1.0;
+    }
+
+    let minus_two_lambda_squared = -2.0 * lambda * lambda;
+    let mut q_ks = 0.0;
+
+    for j in 1..200 {
+        let sign = if j % 2 == 1 {
+            1.0
+        } else {
+            -1.0
+        };
+
+        let j = j as f64;
+        let term = sign * 2.0 * (minus_two_lambda_squared * j * j).exp();
+
+        q_ks += term;
+
+        if term.abs() < 1e-8 {
+            // Trim results that exceed 1.
+            return q_ks.min(1.0);
+        }
+    }
+
+    panic!("No convergence in probability_kolmogorov_smirnov({}).",
+           lambda);
+}
 
 #[cfg(test)]
 mod tests {
@@ -238,7 +320,7 @@ mod tests {
 
     /// Wrapper for generating sample data with QuickCheck.
     ///
-    /// Samples must be sequences of u64 values with more than 12 elements.
+    /// Samples must be sequences of u64 values with more than 7 elements.
     #[derive(Debug, Clone)]
     struct Samples {
         vec: Vec<u64>,
@@ -266,7 +348,7 @@ mod tests {
             // Limit size of generated sample set to 1024
             let max = cmp::min(g.size(), 1024);
 
-            let size = g.gen_range(13, max);
+            let size = g.gen_range(8, max);
             let vec = (0..size).map(|_| u64::arbitrary(g)).collect();
 
             Samples { vec: vec }
@@ -276,7 +358,7 @@ mod tests {
             let vec: Vec<u64> = self.vec.clone();
             let shrunk: Box<Iterator<Item = Vec<u64>>> = vec.shrink();
 
-            Box::new(shrunk.filter(|v| v.len() > 12).map(|v| Samples { vec: v }))
+            Box::new(shrunk.filter(|v| v.len() > 7).map(|v| Samples { vec: v }))
         }
     }
 
@@ -310,21 +392,6 @@ mod tests {
         let xs: Vec<u64> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
         let ys: Vec<u64> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
         test(&xs, &ys, 1.0);
-    }
-
-    #[test]
-    fn test_is_rejected_if_test_statistic_greater_than_critical_value() {
-        fn prop(xs: Samples, ys: Samples) -> bool {
-            let result = test(&xs.vec, &ys.vec, 0.95);
-
-            if result.is_rejected {
-                result.statistic > result.critical_value
-            } else {
-                result.statistic <= result.critical_value
-            }
-        }
-
-        check(prop as fn(Samples, Samples) -> bool);
     }
 
     /// Alternative calculation for the test statistic for the two sample
@@ -582,5 +649,47 @@ mod tests {
         }
 
         check(prop as fn(Samples, u8, u8) -> bool);
+    }
+
+    #[test]
+    fn test_is_rejected_if_reject_probability_greater_than_confidence() {
+        fn prop(xs: Samples, ys: Samples) -> bool {
+            let result = test(&xs.vec, &ys.vec, 0.95);
+
+            if result.is_rejected {
+                result.reject_probability > 0.95
+            } else {
+                result.reject_probability <= 0.95
+            }
+        }
+
+        check(prop as fn(Samples, Samples) -> bool);
+    }
+
+    #[test]
+    fn test_reject_probability_is_zero_for_identical_samples() {
+        fn prop(xs: Samples) -> bool {
+            let ys = xs.clone();
+
+            let result = test(&xs.vec, &ys.vec, 0.95);
+
+            result.reject_probability == 0.0
+        }
+
+        check(prop as fn(Samples) -> bool);
+    }
+
+    #[test]
+    fn test_reject_probability_is_zero_for_permuted_sample() {
+        fn prop(xs: Samples) -> bool {
+            let mut ys = xs.clone();
+            ys.shuffle();
+
+            let result = test(&xs.vec, &ys.vec, 0.95);
+
+            result.reject_probability == 0.0
+        }
+
+        check(prop as fn(Samples) -> bool);
     }
 }

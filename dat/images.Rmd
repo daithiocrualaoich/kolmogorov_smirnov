@@ -10,6 +10,24 @@ knitr::opts_chunk$set(dpi=200)
 # The Kolmogorov Smirnov Test
 
 ```{r load, echo=FALSE}
+critical_values <- read.table("critical_values.tsv", sep="\t", header=TRUE)
+colnames(critical_values) <- c("n1", "n2", "confidence", "numerical_recipes")
+critical_values$confidence <- as.numeric(as.character(critical_values$confidence))
+critical_values$n1 <- as.numeric(as.character(critical_values$n1))
+critical_values$n2 <- as.numeric(as.character(critical_values$n2))
+critical_values$numerical_recipes <- as.numeric(as.character(critical_values$numerical_recipes))
+
+critical_values <- critical_values[critical_values$confidence == 0.95,]
+
+calculate_critical_value_wikipedia_95 <- function(n1, n2) {  
+  factor = (n1 + n2) / (n1 * n2);
+  return (1.36 * sqrt(factor));
+}
+
+critical_values$wikipedia <- calculate_critical_value_wikipedia_95(
+  critical_values$n1, critical_values$n2
+)
+
 normal01 <- read.table("normal_0_1.tsv", sep="\t", header=FALSE)
 colnames(normal01) <- c("x")
 normal01$ecdf <- ecdf(normal01$x)(normal01$x)
@@ -17,6 +35,10 @@ normal01$ecdf <- ecdf(normal01$x)(normal01$x)
 normal012 <- read.table("normal_0_1.2.tsv", sep="\t", header=FALSE)
 colnames(normal012) <- c("x")
 normal012$ecdf <- ecdf(normal012$x)(normal012$x)
+
+normal014 <- read.table("normal_0_1.4.tsv", sep="\t", header=FALSE)
+colnames(normal014) <- c("x")
+normal014$ecdf <- ecdf(normal014$x)(normal014$x)
 
 normal02 <- read.table("normal_0_2.tsv", sep="\t", header=FALSE)
 colnames(normal02) <- c("x")
@@ -90,6 +112,16 @@ http4$ttime_ecdf <- ecdf(http4$ttime)(http4$ttime)
 twtr <- read.table("twtr.tsv", sep="\t", header=TRUE)
 twtr$open_ecdf <- ecdf(twtr$open)(twtr$open)
 twtr$volume_ecdf <- ecdf(twtr$volume)(twtr$volume)
+```
+
+## Critical Values Plot
+
+```{r critical-values, echo=FALSE}
+ggplot(critical_values, aes(x=n2, y=wikipedia)) +
+  geom_line(alpha=0.5, size=1) +
+  geom_line(alpha=0.5, size=1, aes(x=n2, y=numerical_recipes)) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
 ```
 
 ## N(0,1), N(0,2) Empirical Cumulative Distribution Function
@@ -225,6 +257,26 @@ ggplot(normal022, aes(x=x)) +
 ggplot(normal022, aes(x=x, y=ecdf)) +
   geom_line(alpha=0.5, size=1) +
   geom_line(data=normal012, alpha=0.5, size=1) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## N(0,1)-4, N(0,2)-1 Density
+
+```{r n014n021, echo=FALSE}
+ggplot(normal021, aes(x=x)) +
+  stat_density(alpha=0.5, colour="slateblue4", fill="slateblue4") +
+  stat_density(data=normal014, alpha=0.5, colour="mistyrose4", fill="mistyrose4") +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_y_continuous(labels=comma)
+```
+
+## N(0,1)-4, N(0,2)-1 Empirical Cumulative Distribution Function
+
+```{r n014n021ecdf, echo=FALSE}
+ggplot(normal021, aes(x=x, y=ecdf)) +
+  geom_line(alpha=0.5, size=1) +
+  geom_line(data=normal014, alpha=0.5, size=1) +
   theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
   scale_y_continuous(labels=comma)
 ```

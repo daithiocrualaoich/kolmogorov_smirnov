@@ -165,6 +165,14 @@ This can be computed by summing terms until a convergence criteria is achieved.
 The implementation in Numerical Recipes gives this a hundred terms to converge
 before failing.
 
+The difference between the two approximations is marginal. The Numerical
+Recipes approach produces slightly smaller critical values for rejecting the
+null hypothesis as can be seen in the following plot of critical values for the
+95% confidence level where one of the samples has size 256. The x axis varies
+over the other sample size, the y axis being the critical value.
+
+.. image:: images/critical-values-1.png
+
 Discussion
 ~~~~~~~~~~
 A straightforward implementation of this test can be found in the
@@ -359,9 +367,15 @@ other at 95% confidence.
 
     $ cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_0_1.1.tsv
     Samples are from the same distributions.
+    test statistic = 0.0399169921875
+    critical value = 0.08550809323787689
+    reject_probability = 0.18365715210599798
 
     $ cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_1_1.1.tsv
     Samples are from different distributions.
+    test statistic = 0.361572265625
+    critical value = 0.08550809323787689
+    reject_probability = 1
 
 Testing floating point numbers is a headache because Rust floating point types
 (correctly) do not implement the ``Ord`` trait, only the ``PartialOrd`` trait.
@@ -456,14 +470,14 @@ datasets are all from the same distribution in all combinations of the test.
     $ cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_0_1.1.tsv
     Samples are from the same distributions.
     test statistic = 0.0399169921875
-    critical value = 0.08631790804925708
-    confidence = 0.95
+    critical value = 0.08550809323787689
+    reject_probability = 0.18365715210599798
 
     $ cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_0_1.2.tsv
     Samples are from the same distributions.
     test statistic = 0.0595703125
-    critical value = 0.08631790804925708
-    confidence = 0.95
+    critical value = 0.08550809323787689
+    reject_probability = 0.6677483327196572
 
     ...
 
@@ -494,11 +508,11 @@ false negative.
 
 .. sourcecode:: bash
 
-    $ cargo run -q --bin ks_f64 dat/normal_0_2.tsv dat/normal_0_2.1.tsv
+    $ cargo run -q --bin ks_f64 dat/normal_0_2.1.tsv dat/normal_0_2.tsv
     Samples are from different distributions.
     test statistic = 0.102783203125
-    critical value = 0.08631790804925708
-    confidence = 0.95
+    critical value = 0.08550809323787689
+    reject_probability = 0.9903113063475989
 
 This failure is a demonstration of how the Kolmogorov-Smirnov test is sensitive
 to location because here the mean of the ``dat/normal_0_2.1.tsv`` is shifted
@@ -555,7 +569,7 @@ runs comparisons between datasets from different distributions.
     done
 
 The :math:`N(0, 1)` against :math:`N(1, 1)` and :math:`N(0, 2)` against
-:math:`N(0, 1)` tests correctly reject the null hypothesis in every variation.
+:math:`N(1, 1)` tests correctly reject the null hypothesis in every variation.
 These tests are easy failures because they are large location changes,
 illustrating again how the Kolmogorov-Smirnov test is sensitive to changes in
 centrally located weight.
@@ -566,26 +580,41 @@ However, there are ten false positives in the comparisons between datasets from
 ``dat/normal_0_1.2.tsv`` is reported incorrectly as being from the same
 distribution as the following datasets.
 
-* ``dat/normal_0_2.tsv``
-* ``dat/normal_0_2.2.tsv``
-* ``dat/normal_0_2.3.tsv``
-* ``dat/normal_0_2.4.tsv``
+* ``dat/normal_0_2.tsv`` at :math:`P(\text{reject } H_0) = 0.9375`,
+* ``dat/normal_0_2.2.tsv`` at :math:`P(\text{reject } H_0) = 0.6584`,
+* ``dat/normal_0_2.3.tsv`` at :math:`P(\text{reject } H_0) = 0.9128`,
+* ``dat/normal_0_2.4.tsv`` at :math:`P(\text{reject } H_0) = 0.8658`.
 
 Similarly, ``dat/normal_0_1.3.tsv`` is a false positive against:
 
-* ``dat/normal_0_2.3.tsv``
-* ``dat/normal_0_2.4.tsv``
+* ``dat/normal_0_2.3.tsv`` at :math:`P(\text{reject } H_0) = 0.9128`,
+* ``dat/normal_0_2.4.tsv`` at :math:`P(\text{reject } H_0) = 0.8658`.
 
 And ``dat/normal_0_1.4.tsv`` is a false positive against:
 
-* ``dat/normal_0_2.1.tsv``
-* ``dat/normal_0_2.2.tsv``
-* ``dat/normal_0_2.3.tsv``
-* ``dat/normal_0_2.4.tsv``
+* ``dat/normal_0_2.1.tsv`` at :math:`P(\text{reject } H_0) = 0.9451`,
+* ``dat/normal_0_2.2.tsv`` at :math:`P(\text{reject } H_0) = 0.9451`,
+* ``dat/normal_0_2.3.tsv`` at :math:`P(\text{reject } H_0) = 0.9128`,
+* ``dat/normal_0_2.4.tsv`` at :math:`P(\text{reject } H_0) = 0.9128`.
 
-Let's examine just one of these failures, that between ``dat/normal_0_1.2.tsv``
-and ``dat/normal_0_2.2.tsv``. The overlaid density and empirical cumulative
-density functions show strong difference.
+Note that many of these false positives have rejection probabilities that are
+high but fall short of the 95% confidence level required. The null hypothesis is
+that the distributions are the same and it is this that must be challenged at
+the 95% level.
+
+Let's examine the test where the rejection probability is lowest, that between
+``dat/normal_0_1.2.tsv`` and ``dat/normal_0_2.2.tsv``.
+
+.. sourcecode:: bash
+
+    $ cargo run -q --bin ks_f64 dat/normal_0_1.2.tsv dat/normal_0_2.2.tsv
+    Samples are from the same distributions.
+    test statistic = 0.08203125
+    critical value = 0.11867932230234146
+    reject_probability = 0.6584658436106378
+
+The overlaid density and empirical cumulative density functions show strong
+difference.
 
 .. image:: images/n012n022-1.png
 .. image:: images/n012n022ecdf-1.png
@@ -593,20 +622,39 @@ density functions show strong difference.
 The problem, however, is a lack of samples combined with the weakness of the
 Kolmogorov-Smirnov test in detecting differences in spread at the tails. Both of
 these datasets have 256 samples and the critical value for 95% confidence is
-0.12. This is a large difference to demonstrate at the edges of the empirical
+0.1186. This is a large difference to demonstrate at the edges of the empirical
 cumulative distribution functions and in the case of this test the :math:`D`
 test statistic is a comfortable 0.082.
 
 There is insufficient evidence to reject the null hypothesis.
 
+Let's also examine the false positive test where the rejection probability is
+tied highest, between ``dat/normal_0_1.4.tsv`` and ``dat/normal_0_2.1.tsv``.
+
+.. sourcecode:: bash
+
+    $ cargo run -q --bin ks_f64 dat/normal_0_1.4.tsv dat/normal_0_2.1.tsv
+    Samples are from the same distributions.
+    test statistic = 0.1171875
+    critical value = 0.11867932230234146
+    reject_probability = 0.9451734528250557
+
+.. image:: images/n014n021-1.png
+.. image:: images/n014n021ecdf-1.png
+
+This is just incredibly borderline. There is very strong difference on the left
+side but it falls fractionally short of the required confidence level. Note how
+this also illustrates the bias in favour of the null hypothesis that the two
+samples are from the same distribution.
+
 Notice that of the false positives, only the one between
 ``dat/normal_0_1.2.tsv`` and ``dat/normal_0_2.tsv`` happens with a dataset
 containing more than 256 samples. In this test with 8192 samples against 256,
-the critical value is 0.08631 and the test statistic scrapes by underneath at
+the critical value is 0.0855 and the test statistic scrapes by underneath at
 0.08288.
 
 In the case for two samples of size 8192, the critical value is a very
-discriminating 0.02125.
+discriminating 0.02118.
 
 In total there are ten false positives in 75 tests, a poor showing.
 
@@ -764,8 +812,8 @@ The only accepted test returned the following test information:
     $ cargo run -q --bin ks_f64 dat/http_ttime.1.tsv dat/http_ttime.4.tsv
     Samples are from the same distributions.
     test statistic = 0.0703125
-    critical value = 0.1202081528017131
-    confidence = 0.95
+    critical value = 0.11867932230234146
+    reject_probability = 0.4633497077833878
 
 Here is the timeseries and density plot for ``ttime`` in the
 ``dat/http_ttime.1.tsv`` dataset for comparison to the ``dat/http_ttime.tsv``
@@ -805,8 +853,8 @@ the smallest test statistic from the rejected cases.
     $ cargo run -q --bin ks_f64 dat/http_ttime.4.tsv dat/http_ttime.tsv
     Samples are from different distributions.
     test statistic = 0.1368408203125
-    critical value = 0.08631790804925708
-    confidence = 0.95
+    critical value = 0.08550809323787689
+    reject_probability = 0.9998422018223175
 
 Even still, this is not a close match. The empirical cumulative density function
 plots show very different profiles on the error request times to the left of the
