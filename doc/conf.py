@@ -2,8 +2,8 @@ project = u'Kolmogorov-Smirnov'
 copyright = u'2015, Daithi O Crualaoich'
 author = u'Daithi O Crualaoich'
 
-version = '1.0.0'
-release = '1.0.0'
+version = '1.0.1'
+release = '1.0.1'
 
 extensions = [
   'sphinx.ext.pngmath',

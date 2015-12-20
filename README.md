@@ -11,7 +11,7 @@ The Kolmogorov-Smirnov library is available as a crate, so it is easy to
 incorporate into your programs. Add the dependency to your `Cargo.toml` file.
 
     [dependencies]
-    kolmogorov_smirnov = "1.0.0"
+    kolmogorov_smirnov = "1.0.1"
 
 Information about the latest published crate is available on
 [crates.io](https://crates.io/crates/kolmogorov_smirnov).
