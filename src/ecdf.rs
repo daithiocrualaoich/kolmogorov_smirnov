@@ -116,7 +116,7 @@ mod tests {
             let vec: Vec<u64> = self.vec.clone();
             let shrunk: Box<Iterator<Item = Vec<u64>>> = vec.shrink();
 
-            Box::new(shrunk.map(|v| Samples { vec: v }))
+            Box::new(shrunk.filter(|v| v.len() > 0).map(|v| Samples { vec: v }))
         }
     }
 
