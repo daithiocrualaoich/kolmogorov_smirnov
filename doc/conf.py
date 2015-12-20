@@ -7,6 +7,7 @@ release = '1.0.0'
 
 extensions = [
   'sphinx.ext.pngmath',
+  'sphinxcontrib.googleanalytics'
 ]
 
 templates_path = ['_templates']
@@ -18,6 +19,7 @@ master_doc = 'index'
 language = None
 pygments_style = 'sphinx'
 
+googleanalytics_id = 'UA-71626319-1'
 
 # -- Options for HTML output ----------------------------------------------
 

@@ -33,7 +33,7 @@ RUN     apt-get install -qq pandoc
 ################################################################################
 
 RUN     apt-get install -qq python2.7 python2.7-dev python-pip
-RUN     pip install Sphinx
+RUN     pip install Sphinx sphinxcontrib-googleanalytics
 RUN     pip install cloud_sptheme
 
 
