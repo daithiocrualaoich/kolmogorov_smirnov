@@ -80,10 +80,9 @@ described earlier.
 
     cargo test
 
-To run this command directly in the Docker container without the intermediate
-shell, use:
+To see more detail on panics include the `RUST_BACKTRACE` environment variable.
 
-    docker run -v "$(pwd):/statistics" --workdir=/statistics statistics cargo test
+    RUST_BACKTRACE=1 cargo test
 
 
 Building the Documentation
@@ -159,9 +158,8 @@ first clean and build the package:
     cargo clean
     cargo package
 
-Inspect the produced package under `target/package/kolmogorov_smirnov-<version>`
-
-When happy to publish:
+Examine the built package under `target/package/kolmogorov_smirnov-<version>`.
+And when happy to publish:
 
     cargo publish
 

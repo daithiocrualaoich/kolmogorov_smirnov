@@ -111,15 +111,15 @@ between the plots in the graph.
 
 .. math::
 
-    D = \sup_{-\infty\leq x \leq\infty} |F_n(x) - G_m(x)|
+    D = \sup_{-\infty < x < \infty} |F_n(x) - G_m(x)|
 
 The Glivenko–Cantelli theorem says if the :math:`F_n(x)` is made from samples
 from the same distribution as :math:`G_m(x)` then this statistic "almost surely
 converges to zero in the limit when n goes to infinity." This is an extremely
 technical statement that we are simply going to ignore.
 
-Two-Sample Kolmogorov-Smirnov Test
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Two Sample Test
+~~~~~~~~~~~~~~~
 Surprisingly, the distribution of :math:`D` can be approximated well in the case
 that the samples are drawn from the same distribution. This means we can build
 a statistic test that rejects this null hypothesis for a given confidence level
@@ -318,8 +318,8 @@ is a shock the first time you get a compiler error for a documentation code
 snippet and it takes you ages to realise what is happening.
 
 
-Kolmogorov-Smirnov Test Library Implementation
-----------------------------------------------
+Kolmogorov-Smirnov Library
+--------------------------
 The Kolmogorov-Smirnov test implementation is available as a Cargo
 `crate <https://crates.io/crates/kolmogorov_smirnov/>`_, so it is simple to
 incorporate into your programs. Add the dependency to your ``Cargo.toml`` file.
@@ -637,7 +637,7 @@ is still useful as it exhibits the behaviour of HTTP endpoint responses anyway.
 
 The options in the call specify:
 
-* ``-c 1``: Use test concurrency of one outstanding request to trottle the
+* ``-c 1``: Use test concurrency of one outstanding request to throttle the
   testing.
 * ``-v 3``: Log at high verbosity level to show individual request data.
 * ``-g http.tsv``: Output a TSV summary to ``http.tsv``. The ``-g`` stands for
