@@ -1,6 +1,6 @@
 //! Two Sample Kolmogorov-Smirnov Test
 
-use std::cmp::min;
+use std::cmp::{min, Ord, Ordering};
 
 /// Two sample test result.
 pub struct TestResult {
@@ -56,6 +56,71 @@ pub fn test<T: Ord + Clone>(xs: &[T], ys: &[T], confidence: f64) -> TestResult {
         critical_value: critical_value,
         confidence: confidence,
     }
+}
+
+/// Wrapper type for f64 to implement Ord and make usable with test.
+#[derive(PartialEq, Clone)]
+struct OrderableF64 {
+    val: f64,
+}
+
+impl OrderableF64 {
+    fn new(val: f64) -> OrderableF64 {
+        OrderableF64 { val: val }
+    }
+}
+
+impl Eq for OrderableF64 {}
+
+impl PartialOrd for OrderableF64 {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.val.partial_cmp(&other.val)
+    }
+}
+
+impl Ord for OrderableF64 {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.val.partial_cmp(&other.val).unwrap()
+    }
+}
+
+/// Perform a two sample Kolmogorov-Smirnov test on given f64 samples.
+///
+/// This is necessary because f64 does not implement Ord in Rust as some
+/// elements are incomparable, e.g. NaN. This function wraps the f64s in
+/// implementation of Ord which panics on incomparable elements.
+///
+/// The samples currently must have length > 12 elements for the test to be
+/// valid. Also, only the 0.95 confidence level is supported initially.
+///
+/// # Panics
+///
+/// There are assertion panics if either sequence has <= 12 elements or if
+/// confidence is not 0.95.
+///
+/// If any of the f64 elements in the input samples are unorderable, e.g. NaN.
+///
+/// # Examples
+///
+/// ```
+/// extern crate kolmogorov_smirnov as ks;
+///
+/// let xs = vec!(0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0);
+/// let ys = vec!(12.0, 11.0, 10.0, 9.0, 8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0, 0.0);
+/// let confidence = 0.95;
+///
+/// let result = ks::test_f64(&xs, &ys, confidence);
+///
+/// if result.is_rejected {
+///     println!("{:?} and {:?} are not from the same distribution with confidence {}.",
+///       xs, ys, confidence);
+/// }
+/// ```
+pub fn test_f64(xs: &[f64], ys: &[f64], confidence: f64) -> TestResult {
+    let xs: Vec<OrderableF64> = xs.iter().map(|&f| OrderableF64::new(f)).collect();
+    let ys: Vec<OrderableF64> = ys.iter().map(|&f| OrderableF64::new(f)).collect();
+
+    test(&xs, &ys, confidence)
 }
 
 /// Calculate the critical value for the two sample Kolmogorov-Smirnov test.

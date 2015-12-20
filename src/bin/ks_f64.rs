@@ -1,41 +1,14 @@
 extern crate kolmogorov_smirnov as ks;
 
-use ks::test;
+use ks::test_f64;
 
-use std::cmp::{Ord, Ordering};
 use std::env;
 use std::io::{BufReader, BufRead};
 use std::fs::File;
 use std::path::Path;
 
-#[derive(PartialEq, Clone)]
-struct OrderableFloat {
-    val: f64,
-}
-
-impl OrderableFloat {
-    fn new(val: f64) -> OrderableFloat {
-        OrderableFloat { val: val }
-    }
-}
-
-impl Eq for OrderableFloat {}
-
-impl PartialOrd for OrderableFloat {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.val.partial_cmp(&other.val)
-    }
-}
-
-impl Ord for OrderableFloat {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.val.partial_cmp(&other.val).unwrap()
-    }
-}
-
-fn parse_float(s: String) -> OrderableFloat {
-    let float = s.parse::<f64>().expect("Not a floating point number.");
-    OrderableFloat::new(float)
+fn parse_float(s: String) -> f64 {
+    s.parse::<f64>().expect("Not a floating point number.")
 }
 
 /// Runs a Kolmogorov-Smirnov test on floating point data files.
@@ -62,10 +35,10 @@ fn main() {
     let lines1 = file1.lines().map(|line| line.unwrap());
     let lines2 = file2.lines().map(|line| line.unwrap());
 
-    let xs: Vec<OrderableFloat> = lines1.map(parse_float).collect();
-    let ys: Vec<OrderableFloat> = lines2.map(parse_float).collect();
+    let xs: Vec<f64> = lines1.map(parse_float).collect();
+    let ys: Vec<f64> = lines2.map(parse_float).collect();
 
-    let result = ks::test(&xs, &ys, 0.95);
+    let result = ks::test_f64(&xs, &ys, 0.95);
 
     if result.is_rejected {
         println!("Samples are from different distributions.");
