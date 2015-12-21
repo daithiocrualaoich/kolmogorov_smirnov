@@ -78,6 +78,45 @@ impl<T: Ord + Clone> Ecdf<T> {
     }
 }
 
+/// Calculate a one-time value of the empirical cumulative distribution function
+/// for a given sample.
+///
+/// Computational running time of this function is O(n) but does not amortize
+/// across multiple calls like Ecdf<T>::value. This function should only be
+/// used in the case that a small number of ECDF values are required for the
+/// sample. Otherwise, Ecdf::new should be used to create a structure that
+/// takes the upfront O(n log n) sort cost by calculates values in O(log n).
+///
+/// # Panics
+///
+/// The sample set must be non-empty.
+///
+/// # Examples
+///
+/// ```
+/// extern crate kolmogorov_smirnov as ks;
+///
+/// let samples = vec!(9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+/// let value = ks::ecdf(&samples, 4);
+/// println!("{}", value);
+/// ```
+pub fn ecdf<T: Ord>(samples: &[T], t: T) -> f64 {
+    let mut num_samples_leq_t = 0;
+    let mut length = 0;
+
+    for sample in samples.iter() {
+        length += 1;
+        if *sample <= t {
+            num_samples_leq_t += 1;
+        }
+    }
+
+    assert!(length > 0);
+
+    num_samples_leq_t as f64 / length as f64
+}
+
+
 #[cfg(test)]
 mod tests {
     extern crate quickcheck;
@@ -86,7 +125,7 @@ mod tests {
     use self::quickcheck::{Arbitrary, Gen, QuickCheck, Testable, TestResult, StdGen};
     use std::cmp;
     use std::usize;
-    use super::Ecdf;
+    use super::{Ecdf, ecdf};
 
     fn check<A: Testable>(f: A) {
         let g = StdGen::new(rand::thread_rng(), usize::MAX);
@@ -122,13 +161,31 @@ mod tests {
 
     #[test]
     #[should_panic(expected="assertion failed: length > 0")]
-    fn ecdf_panics_on_empty_samples_set() {
+    fn single_use_ecdf_panics_on_empty_samples_set() {
+        let xs: Vec<u64> = vec![];
+        ecdf(&xs, 0);
+    }
+
+    #[test]
+    #[should_panic(expected="assertion failed: length > 0")]
+    fn multiple_use_ecdf_panics_on_empty_samples_set() {
         let xs: Vec<u64> = vec![];
         Ecdf::new(&xs);
     }
 
     #[test]
-    fn ecdf_between_zero_and_one() {
+    fn single_use_ecdf_between_zero_and_one() {
+        fn prop(xs: Samples, val: u64) -> bool {
+            let actual = ecdf(&xs.vec, val);
+
+            0.0 <= actual && actual <= 1.0
+        }
+
+        check(prop as fn(Samples, u64) -> bool);
+    }
+
+    #[test]
+    fn multiple_use_ecdf_between_zero_and_one() {
         fn prop(xs: Samples, val: u64) -> bool {
             let ecdf = Ecdf::new(&xs.vec);
             let actual = ecdf.value(val);
@@ -140,7 +197,18 @@ mod tests {
     }
 
     #[test]
-    fn ecdf_is_an_increasing_function() {
+    fn single_use_ecdf_is_an_increasing_function() {
+        fn prop(xs: Samples, val: u64) -> bool {
+            let actual = ecdf(&xs.vec, val);
+
+            ecdf(&xs.vec, val - 1) <= actual && actual <= ecdf(&xs.vec, val + 1)
+        }
+
+        check(prop as fn(Samples, u64) -> bool);
+    }
+
+    #[test]
+    fn multiple_use_ecdf_is_an_increasing_function() {
         fn prop(xs: Samples, val: u64) -> bool {
             let ecdf = Ecdf::new(&xs.vec);
             let actual = ecdf.value(val);
@@ -152,7 +220,18 @@ mod tests {
     }
 
     #[test]
-    fn ecdf_sample_min_minus_one_is_zero() {
+    fn single_use_ecdf_sample_min_minus_one_is_zero() {
+        fn prop(xs: Samples) -> bool {
+            let &min = xs.vec.iter().min().unwrap();
+
+            ecdf(&xs.vec, min - 1) == 0.0
+        }
+
+        check(prop as fn(Samples) -> bool);
+    }
+
+    #[test]
+    fn multiple_use_ecdf_sample_min_minus_one_is_zero() {
         fn prop(xs: Samples) -> bool {
             let &min = xs.vec.iter().min().unwrap();
             let ecdf = Ecdf::new(&xs.vec);
@@ -164,7 +243,18 @@ mod tests {
     }
 
     #[test]
-    fn ecdf_sample_max_is_one() {
+    fn single_use_ecdf_sample_max_is_one() {
+        fn prop(xs: Samples) -> bool {
+            let &max = xs.vec.iter().max().unwrap();
+
+            ecdf(&xs.vec, max) == 1.0
+        }
+
+        check(prop as fn(Samples) -> bool);
+    }
+
+    #[test]
+    fn multiple_use_ecdf_sample_max_is_one() {
         fn prop(xs: Samples) -> bool {
             let &max = xs.vec.iter().max().unwrap();
             let ecdf = Ecdf::new(&xs.vec);
@@ -176,7 +266,23 @@ mod tests {
     }
 
     #[test]
-    fn ecdf_sample_val_is_num_samples_leq_val_div_length() {
+    fn single_use_ecdf_sample_val_is_num_samples_leq_val_div_length() {
+        fn prop(xs: Samples) -> bool {
+            let &val = xs.vec.first().unwrap();
+            let num_samples = xs.vec
+                                .iter()
+                                .filter(|&&x| x <= val)
+                                .count();
+            let expected = num_samples as f64 / xs.vec.len() as f64;
+
+            ecdf(&xs.vec, val) == expected
+        }
+
+        check(prop as fn(Samples) -> bool);
+    }
+
+    #[test]
+    fn multiple_use_ecdf_sample_val_is_num_samples_leq_val_div_length() {
         fn prop(xs: Samples) -> bool {
             let &val = xs.vec.first().unwrap();
             let num_samples = xs.vec
@@ -194,7 +300,31 @@ mod tests {
     }
 
     #[test]
-    fn ecdf_non_sample_val_is_num_samples_leq_val_div_length() {
+    fn single_use_ecdf_non_sample_val_is_num_samples_leq_val_div_length() {
+        fn prop(xs: Samples, val: u64) -> TestResult {
+            let length = xs.vec.len();
+
+            if xs.vec.iter().any(|&x| x == val) {
+                // Discard Vec containing val.
+                return TestResult::discard();
+            }
+
+            let num_samples = xs.vec
+                                .iter()
+                                .filter(|&&x| x <= val)
+                                .count();
+            let expected = num_samples as f64 / length as f64;
+
+            let actual = ecdf(&xs.vec, val);
+
+            TestResult::from_bool(actual == expected)
+        }
+
+        check(prop as fn(Samples, u64) -> TestResult);
+    }
+
+    #[test]
+    fn multiple_use_ecdf_non_sample_val_is_num_samples_leq_val_div_length() {
         fn prop(xs: Samples, val: u64) -> TestResult {
             let length = xs.vec.len();
 
@@ -215,5 +345,16 @@ mod tests {
         }
 
         check(prop as fn(Samples, u64) -> TestResult);
+    }
+
+    #[test]
+    fn single_and_multiple_use_ecdf_agree() {
+        fn prop(xs: Samples, val: u64) -> bool {
+            let multiple_use = Ecdf::new(&xs.vec);
+
+            multiple_use.value(val) == ecdf(&xs.vec, val)
+        }
+
+        check(prop as fn(Samples, u64) -> bool);
     }
 }
