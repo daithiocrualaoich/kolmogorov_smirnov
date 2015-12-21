@@ -144,7 +144,7 @@ for:
 
 .. math::
 
-    N_{n, m} = \frac{n + m}{n m} \geq 4
+    N_{n, m} = \frac{n m}{n + m} \geq 4
 
 i.e. for sample of more than seven since :math:`N_{8, 8} = 4`.
 
@@ -366,16 +366,16 @@ other at 95% confidence.
 .. sourcecode:: bash
 
     $ cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_0_1.1.tsv
-    Samples are from the same distributions.
+    Samples are from the same distribution.
     test statistic = 0.0399169921875
     critical value = 0.08550809323787689
-    reject_probability = 0.18365715210599798
+    reject probability = 0.18365715210599798
 
     $ cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_1_1.1.tsv
-    Samples are from different distributions.
+    Samples are from different distribution.
     test statistic = 0.361572265625
     critical value = 0.08550809323787689
-    reject_probability = 1
+    reject probability = 1
 
 Testing floating point numbers is a headache because Rust floating point types
 (correctly) do not implement the ``Ord`` trait, only the ``PartialOrd`` trait.
@@ -468,16 +468,16 @@ datasets are all from the same distribution in all combinations of the test.
 .. sourcecode:: bash
 
     $ cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_0_1.1.tsv
-    Samples are from the same distributions.
+    Samples are from the same distribution.
     test statistic = 0.0399169921875
     critical value = 0.08550809323787689
-    reject_probability = 0.18365715210599798
+    reject probability = 0.18365715210599798
 
     $ cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_0_1.2.tsv
-    Samples are from the same distributions.
+    Samples are from the same distribution.
     test statistic = 0.0595703125
     critical value = 0.08550809323787689
-    reject_probability = 0.6677483327196572
+    reject probability = 0.6677483327196572
 
     ...
 
@@ -512,7 +512,7 @@ false negative.
     Samples are from different distributions.
     test statistic = 0.102783203125
     critical value = 0.08550809323787689
-    reject_probability = 0.9903113063475989
+    reject probability = 0.9903113063475989
 
 This failure is a demonstration of how the Kolmogorov-Smirnov test is sensitive
 to location because here the mean of the ``dat/normal_0_2.1.tsv`` is shifted
@@ -608,10 +608,10 @@ Let's examine the test where the rejection probability is lowest, that between
 .. sourcecode:: bash
 
     $ cargo run -q --bin ks_f64 dat/normal_0_1.2.tsv dat/normal_0_2.2.tsv
-    Samples are from the same distributions.
+    Samples are from the same distribution.
     test statistic = 0.08203125
     critical value = 0.11867932230234146
-    reject_probability = 0.6584658436106378
+    reject probability = 0.6584658436106378
 
 The overlaid density and empirical cumulative density functions show strong
 difference.
@@ -634,10 +634,10 @@ tied highest, between ``dat/normal_0_1.4.tsv`` and ``dat/normal_0_2.1.tsv``.
 .. sourcecode:: bash
 
     $ cargo run -q --bin ks_f64 dat/normal_0_1.4.tsv dat/normal_0_2.1.tsv
-    Samples are from the same distributions.
+    Samples are from the same distribution.
     test statistic = 0.1171875
     critical value = 0.11867932230234146
-    reject_probability = 0.9451734528250557
+    reject probability = 0.9451734528250557
 
 .. image:: images/n014n021-1.png
 .. image:: images/n014n021ecdf-1.png
@@ -810,10 +810,10 @@ The only accepted test returned the following test information:
 .. sourcecode:: bash
 
     $ cargo run -q --bin ks_f64 dat/http_ttime.1.tsv dat/http_ttime.4.tsv
-    Samples are from the same distributions.
+    Samples are from the same distribution.
     test statistic = 0.0703125
     critical value = 0.11867932230234146
-    reject_probability = 0.4633497077833878
+    reject probability = 0.4633497077833878
 
 Here is the timeseries and density plot for ``ttime`` in the
 ``dat/http_ttime.1.tsv`` dataset for comparison to the ``dat/http_ttime.tsv``
@@ -854,7 +854,7 @@ the smallest test statistic from the rejected cases.
     Samples are from different distributions.
     test statistic = 0.1368408203125
     critical value = 0.08550809323787689
-    reject_probability = 0.9998422018223175
+    reject probability = 0.9998422018223175
 
 Even still, this is not a close match. The empirical cumulative density function
 plots show very different profiles on the error request times to the left of the

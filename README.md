@@ -37,16 +37,16 @@ single-column headerless data files and test the samples against each other at
 the 0.95 confidence level.
 
     $ cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_0_1.1.tsv
-    Samples are from the same distributions.
+    Samples are from the same distribution.
     test statistic = 0.0399169921875
     critical value = 0.08550809323787689
-    reject_probability = 0.18365715210599798
+    reject probability = 0.18365715210599798
 
     $ cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_1_1.1.tsv
     Samples are from different distributions.
     test statistic = 0.361572265625
     critical value = 0.08550809323787689
-    reject_probability = 1
+    reject probability = 1
 
 
 Developing Kolmogorov-Smirnov

@@ -43,10 +43,10 @@ fn main() {
     if result.is_rejected {
         println!("Samples are from different distributions.");
     } else {
-        println!("Samples are from the same distributions.");
+        println!("Samples are from the same distribution.");
     }
 
     println!("test statistic = {}", result.statistic);
     println!("critical value = {}", result.critical_value);
-    println!("reject_probability = {}", result.reject_probability);
+    println!("reject probability = {}", result.reject_probability);
 }
