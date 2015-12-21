@@ -19,12 +19,12 @@ critical_values$numerical_recipes <- as.numeric(as.character(critical_values$num
 
 critical_values <- critical_values[critical_values$confidence == 0.95,]
 
-calculate_critical_value_wikipedia_95 <- function(n1, n2) {  
+calculate_critical_value_soest_95 <- function(n1, n2) {  
   factor = (n1 + n2) / (n1 * n2);
   return (1.36 * sqrt(factor));
 }
 
-critical_values$wikipedia <- calculate_critical_value_wikipedia_95(
+critical_values$soest <- calculate_critical_value_soest_95(
   critical_values$n1, critical_values$n2
 )
 
@@ -117,7 +117,7 @@ twtr$volume_ecdf <- ecdf(twtr$volume)(twtr$volume)
 ## Critical Values Plot
 
 ```{r critical-values, echo=FALSE}
-ggplot(critical_values, aes(x=n2, y=wikipedia)) +
+ggplot(critical_values, aes(x=n2, y=soest)) +
   geom_line(alpha=0.5, size=1) +
   geom_line(alpha=0.5, size=1, aes(x=n2, y=numerical_recipes)) +
   theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +

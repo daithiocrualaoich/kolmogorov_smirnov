@@ -173,6 +173,8 @@ over the other sample size, the y axis being the critical value.
 
 .. image:: images/critical-values-1.png
 
+The SOEST tables are an excellent simplifying approximation.
+
 Discussion
 ~~~~~~~~~~
 A straightforward implementation of this test can be found in the
@@ -385,6 +387,11 @@ total over all values in the datatype.
 The test runner for floating point types is implemented using a wrapper type
 that implements a total order, crashing on unorderable elements. This suffices
 in practice since the unorderable elements will break the test anyway.
+
+The implementation uses the Numerical Recipes approximation for rejection
+probabilities rather than the almost as accurate SOEST table approximation for
+critical values. This allows the additional reporting of the reject probability
+which isn't available using the SOEST approach.
 
 
 Datasets
