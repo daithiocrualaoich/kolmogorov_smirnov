@@ -365,7 +365,7 @@ test runner binaries, ``ks_f64`` and ``ks_i32``. These operate on single-column
 headerless data files and test two commandline argument filenames against each
 other at 95% confidence.
 
-.. sourcecode:: bash
+::
 
     $ cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_0_1.1.tsv
     Samples are from the same distribution.
@@ -472,7 +472,7 @@ Results
 The Kolmogorov-Smirnov test is successful at establishing the :math:`N(0, 1)`
 datasets are all from the same distribution in all combinations of the test.
 
-.. sourcecode:: bash
+::
 
     $ cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_0_1.1.tsv
     Samples are from the same distribution.
@@ -513,7 +513,7 @@ However, :math:`N(0, 2)` successfully passes for all combinations but that
 between ``dat/normal_0_2.tsv`` and ``dat/normal_0_2.1.tsv`` where it fails as a
 false negative.
 
-.. sourcecode:: bash
+::
 
     $ cargo run -q --bin ks_f64 dat/normal_0_2.1.tsv dat/normal_0_2.tsv
     Samples are from different distributions.
@@ -612,7 +612,7 @@ the 95% level.
 Let's examine the test where the rejection probability is lowest, that between
 ``dat/normal_0_1.2.tsv`` and ``dat/normal_0_2.2.tsv``.
 
-.. sourcecode:: bash
+::
 
     $ cargo run -q --bin ks_f64 dat/normal_0_1.2.tsv dat/normal_0_2.2.tsv
     Samples are from the same distribution.
@@ -638,7 +638,7 @@ There is insufficient evidence to reject the null hypothesis.
 Let's also examine the false positive test where the rejection probability is
 tied highest, between ``dat/normal_0_1.4.tsv`` and ``dat/normal_0_2.1.tsv``.
 
-.. sourcecode:: bash
+::
 
     $ cargo run -q --bin ks_f64 dat/normal_0_1.4.tsv dat/normal_0_2.1.tsv
     Samples are from the same distribution.
@@ -814,7 +814,7 @@ combinations all of which are false negatives save for the comparison between
 
 The only accepted test returned the following test information:
 
-.. sourcecode:: bash
+::
 
     $ cargo run -q --bin ks_f64 dat/http_ttime.1.tsv dat/http_ttime.4.tsv
     Samples are from the same distribution.
@@ -855,7 +855,7 @@ a possible chance of accepting the null hypothesis was that between
 ``dat/http_ttime.tsv`` and ``dat/http_ttime.4.tsv``. This is the comparison with
 the smallest test statistic from the rejected cases.
 
-.. sourcecode:: bash
+::
 
     $ cargo run -q --bin ks_f64 dat/http_ttime.4.tsv dat/http_ttime.tsv
     Samples are from different distributions.
