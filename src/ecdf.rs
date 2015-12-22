@@ -50,7 +50,7 @@ impl<T: Ord + Clone> Ecdf<T> {
     ///
     /// let samples = vec!(9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
     /// let ecdf = ks::Ecdf::new(&samples);
-    /// println!("{}", ecdf.value(4));
+    /// assert_eq!(ecdf.value(4), 0.5);
     /// ```
     pub fn value(&self, t: T) -> f64 {
         let num_samples_leq_t = match self.samples.binary_search(&t) {
@@ -91,7 +91,7 @@ impl<T: Ord + Clone> Ecdf<T> {
     ///
     /// let samples = vec!(9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
     /// let ecdf = ks::Ecdf::new(&samples);
-    /// println!("{}", ecdf.percentile(50));
+    /// assert_eq!(ecdf.percentile(50), 4);
     /// ```
     pub fn percentile(&self, p: u8) -> T {
         assert!(0 < p && p <= 100);
@@ -121,7 +121,7 @@ impl<T: Ord + Clone> Ecdf<T> {
 ///
 /// let samples = vec!(9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
 /// let value = ks::ecdf(&samples, 4);
-/// println!("{}", value);
+/// assert_eq!(value, 0.5);
 /// ```
 pub fn ecdf<T: Ord>(samples: &[T], t: T) -> f64 {
     let mut num_samples_leq_t = 0;
