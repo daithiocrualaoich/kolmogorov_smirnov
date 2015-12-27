@@ -81,7 +81,7 @@ impl<T: Ord + Clone> Ecdf<T> {
     ///
     /// # Panics
     ///
-    /// The percentile requested must be between than 1 and 100 inclusive. In
+    /// The percentile requested must be between 1 and 100 inclusive. In
     /// particular, there is no 0-percentile.
     ///
     /// # Examples
@@ -108,7 +108,7 @@ impl<T: Ord + Clone> Ecdf<T> {
 /// across multiple calls like Ecdf<T>::value. This function should only be
 /// used in the case that a small number of ECDF values are required for the
 /// sample. Otherwise, Ecdf::new should be used to create a structure that
-/// takes the upfront O(n log n) sort cost by calculates values in O(log n).
+/// takes the upfront O(n log n) sort cost but calculates values in O(log n).
 ///
 /// # Panics
 ///
@@ -139,6 +139,117 @@ pub fn ecdf<T: Ord>(samples: &[T], t: T) -> f64 {
     num_samples_leq_t as f64 / length as f64
 }
 
+/// Calculate a one-time percentile for a given sample using the Nearest Rank
+/// method and Quick Select.
+///
+/// Computational running time of this function is O(n) but does not amortize
+/// across multiple calls like Ecdf<T>::percentile. This function should only be
+/// used in the case that a small number of percentiles are required for the
+/// sample. Otherwise, Ecdf::new should be used to create a structure that
+/// takes the upfront O(n log n) sort cost but calculates percentiles in O(1).
+///
+/// # Panics
+///
+/// The sample set must be non-empty.
+///
+/// The percentile requested must be between 1 and 100 inclusive. In particular,
+/// there is no 0-percentile.
+///
+/// # Examples
+///
+/// ```
+/// extern crate kolmogorov_smirnov as ks;
+///
+/// let samples = vec!(9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+/// let percentile = ks::percentile(&samples, 50);
+/// assert_eq!(percentile, 4);
+/// ```
+pub fn percentile<T: Ord + Clone>(samples: &[T], p: u8) -> T {
+    assert!(0 < p && p <= 100);
+
+    let length = samples.len();
+    assert!(length > 0);
+
+    let rank = (p as f64 * length as f64 / 100.0).ceil() as usize;
+
+    // Quick Select the element at rank.
+
+    let mut samples: Vec<T> = samples.to_vec();
+    let mut low = 0;
+    let mut high = length;
+
+    loop {
+        assert!(low < high);
+
+        let pivot = samples[low].clone();
+
+        if low >= high - 1 {
+            return pivot;
+        }
+
+        // First determine if the rank item is less than the pivot.
+
+        // Organise samples so that all items less than pivot are to the left,
+        // `bottom` is the number of items less than pivot.
+
+        let mut bottom = low;
+        let mut top = high - 1;
+
+        while bottom < top {
+            while bottom < top && samples[bottom] < pivot {
+                bottom += 1;
+            }
+            while bottom < top && samples[top] >= pivot {
+                top -= 1;
+            }
+
+            if bottom < top {
+                samples.swap(bottom, top);
+            }
+        }
+
+        if rank <= bottom {
+            // Rank item is less than pivot. Exclude pivot and larger items.
+            high = bottom;
+        } else {
+            // Rank item is pivot or in the larger set. Exclude smaller items.
+            low = bottom;
+
+            // Next, determine if the pivot is the rank item.
+
+            // Organise samples so that all items less than or equal to pivot
+            // are to the left, `bottom` is the number of items less than or
+            // equal to pivot. Since the left is already less than the pivot,
+            // this just requires moving the pivots left also.
+
+            let mut bottom = low;
+            let mut top = high - 1;
+
+            while bottom < top {
+                while bottom < top && samples[bottom] == pivot {
+                    bottom += 1;
+                }
+                while bottom < top && samples[top] != pivot {
+                    top -= 1;
+                }
+
+                if bottom < top {
+                    samples.swap(bottom, top);
+                }
+            }
+
+            // Is pivot the rank item?
+
+            if rank <= bottom {
+                return pivot;
+            }
+
+            // Rank item is greater than pivot. Exclude pivot and smaller items.
+            low = bottom;
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -148,7 +259,7 @@ mod tests {
     use self::quickcheck::{Arbitrary, Gen, QuickCheck, Testable, TestResult, StdGen};
     use std::cmp;
     use std::usize;
-    use super::{Ecdf, ecdf};
+    use super::{Ecdf, ecdf, percentile};
 
     fn check<A: Testable>(f: A) {
         let g = StdGen::new(rand::thread_rng(), usize::MAX);
@@ -405,6 +516,22 @@ mod tests {
 
     #[test]
     #[should_panic(expected="assertion failed: 0 < p && p <= 100")]
+    fn single_use_percentiles_panics_on_zero_percentile() {
+        let xs: Vec<u64> = vec![0];
+
+        percentile(&xs, 0);
+    }
+
+    #[test]
+    #[should_panic(expected="assertion failed: 0 < p && p <= 100")]
+    fn single_use_percentiles_panics_on_101_percentile() {
+        let xs: Vec<u64> = vec![0];
+
+        percentile(&xs, 101);
+    }
+
+    #[test]
+    #[should_panic(expected="assertion failed: 0 < p && p <= 100")]
     fn multiple_use_percentiles_panics_on_zero_percentile() {
         let xs: Vec<u64> = vec![0];
         let ecdf = Ecdf::new(&xs);
@@ -422,13 +549,52 @@ mod tests {
     }
 
     #[test]
+    fn single_use_percentile_between_samples_min_and_max() {
+        fn prop(xs: Samples, p: Percentile) -> bool {
+            let &min = xs.vec.iter().min().unwrap();
+            let &max = xs.vec.iter().max().unwrap();
+
+            let actual = percentile(&xs.vec, p.val);
+
+            min <= actual && actual <= max
+        }
+
+        check(prop as fn(Samples, Percentile) -> bool);
+    }
+
+    #[test]
+    fn single_use_percentile_is_an_increasing_function() {
+        fn prop(xs: Samples, p: Percentile) -> bool {
+            let smaller = cmp::max(p.val - 1, 1);
+            let larger = cmp::min(p.val + 1, 100);
+
+            let actual = percentile(&xs.vec, p.val);
+
+            percentile(&xs.vec, smaller) <= actual && actual <= percentile(&xs.vec, larger)
+        }
+
+        check(prop as fn(Samples, Percentile) -> bool);
+    }
+
+    #[test]
+    fn single_use_percentile_100_is_sample_max() {
+        fn prop(xs: Samples) -> bool {
+            let &max = xs.vec.iter().max().unwrap();
+
+            percentile(&xs.vec, 100) == max
+        }
+
+        check(prop as fn(Samples) -> bool);
+    }
+
+    #[test]
     fn multiple_use_percentile_between_samples_min_and_max() {
-        fn prop(xs: Samples, percentile: Percentile) -> bool {
+        fn prop(xs: Samples, p: Percentile) -> bool {
             let &min = xs.vec.iter().min().unwrap();
             let &max = xs.vec.iter().max().unwrap();
 
             let ecdf = Ecdf::new(&xs.vec);
-            let actual = ecdf.percentile(percentile.val);
+            let actual = ecdf.percentile(p.val);
 
             min <= actual && actual <= max
         }
@@ -438,12 +604,12 @@ mod tests {
 
     #[test]
     fn multiple_use_percentile_is_an_increasing_function() {
-        fn prop(xs: Samples, percentile: Percentile) -> bool {
-            let smaller = cmp::max(percentile.val - 1, 1);
-            let larger = cmp::min(percentile.val + 1, 100);
+        fn prop(xs: Samples, p: Percentile) -> bool {
+            let smaller = cmp::max(p.val - 1, 1);
+            let larger = cmp::min(p.val + 1, 100);
 
             let ecdf = Ecdf::new(&xs.vec);
-            let actual = ecdf.percentile(percentile.val);
+            let actual = ecdf.percentile(p.val);
 
             ecdf.percentile(smaller) <= actual && actual <= ecdf.percentile(larger)
         }
@@ -464,13 +630,38 @@ mod tests {
     }
 
     #[test]
+    fn single_use_ecdf_followed_by_single_use_percentile_is_leq_original_value() {
+        fn prop(xs: Samples, val: u64) -> TestResult {
+            let actual = ecdf(&xs.vec, val);
+
+            let p = (actual * 100.0).floor() as u8;
+
+            match p {
+                0 => {
+                    // val is below the first percentile threshold. Can't
+                    // calculate 0-percentile value so discard.
+                    TestResult::discard()
+                }
+                _ => {
+                    // Not equal because e.g. all percentiles of [0] are 0. So
+                    // value of 1 gives ecdf == 1.0 and percentile(100) == 0.
+                    let single_use = percentile(&xs.vec, p);
+                    TestResult::from_bool(single_use <= val)
+                }
+            }
+        }
+
+        check(prop as fn(Samples, u64) -> TestResult);
+    }
+
+    #[test]
     fn single_use_ecdf_followed_by_multiple_use_percentile_is_leq_original_value() {
         fn prop(xs: Samples, val: u64) -> TestResult {
             let actual = ecdf(&xs.vec, val);
 
-            let percentile = (actual * 100.0).floor() as u8;
+            let p = (actual * 100.0).floor() as u8;
 
-            match percentile {
+            match p {
                 0 => {
                     // val is below the first percentile threshold. Can't
                     // calculate 0-percentile value so discard.
@@ -480,7 +671,33 @@ mod tests {
                     // Not equal because e.g. all percentiles of [0] are 0. So
                     // value of 1 gives ecdf == 1.0 and percentile(100) == 0.
                     let multiple_use = Ecdf::new(&xs.vec);
-                    TestResult::from_bool(multiple_use.percentile(percentile) <= val)
+                    TestResult::from_bool(multiple_use.percentile(p) <= val)
+                }
+            }
+        }
+
+        check(prop as fn(Samples, u64) -> TestResult);
+    }
+
+    #[test]
+    fn multiple_use_ecdf_followed_by_single_use_percentile_is_leq_original_value() {
+        fn prop(xs: Samples, val: u64) -> TestResult {
+            let ecdf = Ecdf::new(&xs.vec);
+            let actual = ecdf.value(val);
+
+            let p = (actual * 100.0).floor() as u8;
+
+            match p {
+                0 => {
+                    // val is below the first percentile threshold. Can't
+                    // calculate 0-percentile value so discard.
+                    TestResult::discard()
+                }
+                _ => {
+                    // Not equal because e.g. all percentiles of [0] are 0. So
+                    // value of 1 gives ecdf == 1.0 and percentile(100) == 0.
+                    let single_use = percentile(&xs.vec, p);
+                    TestResult::from_bool(single_use <= val)
                 }
             }
         }
@@ -494,9 +711,9 @@ mod tests {
             let ecdf = Ecdf::new(&xs.vec);
             let actual = ecdf.value(val);
 
-            let percentile = (actual * 100.0).floor() as u8;
+            let p = (actual * 100.0).floor() as u8;
 
-            match percentile {
+            match p {
                 0 => {
                     // val is below the first percentile threshold. Can't
                     // calculate 0-percentile value so discard.
@@ -505,7 +722,7 @@ mod tests {
                 _ => {
                     // Not equal because e.g. all percentiles of [0] are 0. So
                     // value of 1 gives ecdf == 1.0 and percentile(100) == 0.
-                    TestResult::from_bool(ecdf.percentile(percentile) <= val)
+                    TestResult::from_bool(ecdf.percentile(p) <= val)
                 }
             }
         }
@@ -514,14 +731,42 @@ mod tests {
     }
 
     #[test]
-    fn multiple_use_percentile_followed_by_single_use_edf_is_geq_original_value() {
-        fn prop(xs: Samples, percentile: Percentile) -> bool {
-            let multiple_use = Ecdf::new(&xs.vec);
-            let actual = multiple_use.percentile(percentile.val);
+    fn single_use_percentile_followed_by_single_use_edf_is_geq_original_value() {
+        fn prop(xs: Samples, p: Percentile) -> bool {
+            let actual = percentile(&xs.vec, p.val);
 
             // Not equal because e.g. 1- through 50-percentiles of [0, 1] are 0.
             // So original value of 1 gives percentile == 0 and ecdf(0) == 0.5.
-            percentile.val as f64 / 100.0 <= ecdf(&xs.vec, actual)
+            p.val as f64 / 100.0 <= ecdf(&xs.vec, actual)
+        }
+
+        check(prop as fn(Samples, Percentile) -> bool);
+    }
+
+    #[test]
+    fn single_use_percentile_followed_by_multiple_use_edf_is_geq_original_value() {
+        fn prop(xs: Samples, p: Percentile) -> bool {
+            let actual = percentile(&xs.vec, p.val);
+
+            let ecdf = Ecdf::new(&xs.vec);
+
+            // Not equal because e.g. 1- through 50-percentiles of [0, 1] are 0.
+            // So original value of 1 gives percentile == 0 and ecdf(0) == 0.5.
+            p.val as f64 / 100.0 <= ecdf.value(actual)
+        }
+
+        check(prop as fn(Samples, Percentile) -> bool);
+    }
+
+    #[test]
+    fn multiple_use_percentile_followed_by_single_use_edf_is_geq_original_value() {
+        fn prop(xs: Samples, p: Percentile) -> bool {
+            let multiple_use = Ecdf::new(&xs.vec);
+            let actual = multiple_use.percentile(p.val);
+
+            // Not equal because e.g. 1- through 50-percentiles of [0, 1] are 0.
+            // So original value of 1 gives percentile == 0 and ecdf(0) == 0.5.
+            p.val as f64 / 100.0 <= ecdf(&xs.vec, actual)
         }
 
         check(prop as fn(Samples, Percentile) -> bool);
@@ -529,13 +774,24 @@ mod tests {
 
     #[test]
     fn multiple_use_percentile_followed_by_multiple_use_edf_is_geq_original_value() {
-        fn prop(xs: Samples, percentile: Percentile) -> bool {
+        fn prop(xs: Samples, p: Percentile) -> bool {
             let ecdf = Ecdf::new(&xs.vec);
-            let actual = ecdf.percentile(percentile.val);
+            let actual = ecdf.percentile(p.val);
 
             // Not equal because e.g. 1- through 50-percentiles of [0, 1] are 0.
             // So original value of 1 gives percentile == 0 and ecdf(0) == 0.5.
-            percentile.val as f64 / 100.0 <= ecdf.value(actual)
+            p.val as f64 / 100.0 <= ecdf.value(actual)
+        }
+
+        check(prop as fn(Samples, Percentile) -> bool);
+    }
+
+    #[test]
+    fn single_and_multiple_use_percentile_agree() {
+        fn prop(xs: Samples, p: Percentile) -> bool {
+            let multiple_use = Ecdf::new(&xs.vec);
+
+            multiple_use.percentile(p.val) == percentile(&xs.vec, p.val)
         }
 
         check(prop as fn(Samples, Percentile) -> bool);
