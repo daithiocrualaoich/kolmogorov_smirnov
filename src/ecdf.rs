@@ -99,6 +99,36 @@ impl<T: Ord + Clone> Ecdf<T> {
         let rank = (p as f64 * self.length as f64 / 100.0).ceil() as usize;
         self.samples[rank - 1].clone()
     }
+
+    /// Return the minimal element of the samples.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// extern crate kolmogorov_smirnov as ks;
+    ///
+    /// let samples = vec!(9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+    /// let ecdf = ks::Ecdf::new(&samples);
+    /// assert_eq!(ecdf.min(), 0);
+    /// ```
+    pub fn min(&self) -> T {
+        self.samples[0].clone()
+    }
+
+    /// Return the maximal element of the samples.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// extern crate kolmogorov_smirnov as ks;
+    ///
+    /// let samples = vec!(9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+    /// let ecdf = ks::Ecdf::new(&samples);
+    /// assert_eq!(ecdf.max(), 9);
+    /// ```
+    pub fn max(&self) -> T {
+        self.samples[self.samples.len() - 1].clone()
+    }
 }
 
 /// Calculate a one-time value of the empirical cumulative distribution function
@@ -795,5 +825,29 @@ mod tests {
         }
 
         check(prop as fn(Samples, Percentile) -> bool);
+    }
+
+    #[test]
+    fn min_is_leq_all_samples() {
+        fn prop(xs: Samples) -> bool {
+            let multiple_use = Ecdf::new(&xs.vec);
+            let actual = multiple_use.min();
+
+            xs.vec.iter().all(|&x| actual <= x)
+        }
+
+        check(prop as fn(Samples) -> bool);
+    }
+
+    #[test]
+    fn max_is_geq_all_samples() {
+        fn prop(xs: Samples) -> bool {
+            let multiple_use = Ecdf::new(&xs.vec);
+            let actual = multiple_use.max();
+
+            xs.vec.iter().all(|&x| actual >= x)
+        }
+
+        check(prop as fn(Samples) -> bool);
     }
 }
