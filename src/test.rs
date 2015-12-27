@@ -13,13 +13,11 @@ pub struct TestResult {
 
 /// Perform a two sample Kolmogorov-Smirnov test on given samples.
 ///
-/// The samples currently must have length > 12 elements for the test to be
-/// valid. Also, only the 0.95 confidence level is supported initially.
+/// The samples must have length > 7 elements for the test to be valid.
 ///
 /// # Panics
 ///
-/// There are assertion panics if either sequence has <= 12 elements or if
-/// confidence is not 0.95.
+/// There are assertion panics if either sequence has <= 7 elements.
 ///
 /// # Examples
 ///
@@ -91,13 +89,11 @@ impl Ord for OrderableF64 {
 /// elements are incomparable, e.g. NaN. This function wraps the f64s in
 /// implementation of Ord which panics on incomparable elements.
 ///
-/// The samples currently must have length > 12 elements for the test to be
-/// valid. Also, only the 0.95 confidence level is supported initially.
+/// The samples must have length > 7 elements for the test to be valid.
 ///
 /// # Panics
 ///
-/// There are assertion panics if either sequence has <= 12 elements or if
-/// confidence is not 0.95.
+/// There are assertion panics if either sequence has <= 7 elements.
 ///
 /// If any of the f64 elements in the input samples are unorderable, e.g. NaN.
 ///
