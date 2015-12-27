@@ -28,13 +28,13 @@ function with the two samples to compare and the desired confidence level.
     let result = ks::test(&xs, &ys, confidence);
 
     if !result.is_rejected {
-        // Woot! Samples are from the same distribution with 0.95 confidence.
+        // Woot! Samples are from the same distribution with 95% confidence.
     }
 
 Alternatively, if you have floating point or integer data to test, you can use
 the included test runners, ``ks_f64.rs`` and ``ks_i32.rs``. These operate on
 single-column headerless data files and test the samples against each other at
-the 0.95 confidence level.
+the 95% confidence level.
 
     $ cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_0_1.1.tsv
     Samples are from the same distribution.

@@ -14,7 +14,7 @@ fn parse_float(s: String) -> f64 {
 /// Runs a Kolmogorov-Smirnov test on floating point data files.
 ///
 /// Input files must be single-column headerless data files. The data samples
-/// are tested against each other at the 0.95 confidence level.
+/// are tested against each other at the 95% confidence level.
 ///
 /// # Examples
 ///

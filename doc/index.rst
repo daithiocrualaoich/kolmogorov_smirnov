@@ -358,7 +358,7 @@ two samples to compare and the desired confidence level.
     let result = ks::test(&xs, &ys, confidence);
 
     if !result.is_rejected {
-        // Woot! Samples are from the same distribution with 0.95 confidence.
+        // Woot! Samples are from the same distribution with 95% confidence.
     }
 
 The Kolmogorov-Smirnov test as implemented works for any data with a ``Clone``

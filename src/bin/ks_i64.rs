@@ -14,7 +14,7 @@ fn parse_int(s: String) -> i64 {
 /// Runs a Kolmogorov-Smirnov test on integer data files.
 ///
 /// Input files must be single-column headerless data files. The data samples
-/// are tested against each other at the 0.95 confidence level.
+/// are tested against each other at the 95% confidence level.
 ///
 /// # Examples
 ///
