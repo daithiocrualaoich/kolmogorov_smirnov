@@ -86,8 +86,9 @@ differences when the sample medians are far apart than it is at detecting
 when the tails are different but the main mass of the distributions is around
 the same values.
 
-So, more formally, if :math:`X_i` are n independent and identically distributed
-observations, the empirical cumulative distribution function, :math:`F_n`, is:
+So, more formally, suppose :math:`X_i` are n independent and identically
+distributed observations of a continuous value. The empirical cumulative
+distribution function, :math:`F_n`, is:
 
 .. math::
 
@@ -146,7 +147,7 @@ for:
 
     N_{n, m} = \frac{n m}{n + m} \geq 4
 
-i.e. for sample of more than seven since :math:`N_{8, 8} = 4`.
+i.e. for samples of more than seven since :math:`N_{8, 8} = 4`.
 
 Numerical Recipes continues by claiming the probability that the test statistic
 is greater than the value observed is approximately:
@@ -270,6 +271,10 @@ that can be used to construct proofs of memory safety, the rationale for these
 rules is largely unimportant. What is necessary is to find a way to work with
 them so your programs compile.
 
+Remember too that learning to manage memory safely in C/C++ is much harder than
+learning Rust and there is no compiler checking up on you in C/C++ to make sure
+your memory management is correct.
+
 Keep at it. It takes a long time but it does become clearer!
 
 Niche Observations
@@ -358,7 +363,15 @@ two samples to compare and the desired confidence level.
 
 The Kolmogorov-Smirnov test as implemented works for any data with a ``Clone``
 and an ``Ord`` trait implementation in Rust. So it is possible, but pretty
-useless, to test samples of characters, strings and lists.
+useless, to test samples of characters, strings and lists. In truth, the
+Kolmorogov-Smirnov test requires the samples to be taken from a continuous
+distribution, so discrete data like characters and strings are cute to consider
+but invalid test data.
+
+Still being strict, this test condition also does not hold for integer data
+unless some hands are waved about the integer data being embedded into 
+real numbers and a distribution cooked up from the probability weights. We make
+some compromises and allowances.
 
 If you have floating point or integer data to test, you can use the included
 test runner binaries, ``ks_f64`` and ``ks_i32``. These operate on single-column
