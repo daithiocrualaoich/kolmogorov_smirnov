@@ -81,7 +81,7 @@ two samples are from different distributions.
 .. image:: images/n01n11ecdf-1.png
 
 As an aside, these examples demonstrate an important note about the application
-of the Kolomogorov-Smirnov test. It is much better at detecting distributional
+of the Kolmogorov-Smirnov test. It is much better at detecting distributional
 differences when the sample medians are far apart than it is at detecting
 when the tails are different but the main mass of the distributions is around
 the same values.
@@ -162,7 +162,7 @@ With :math:`Q_{KS}` defined as:
 
     Q_{KS}(x) = 2 \sum_{j=1}^{\infty} (-1)^{j-1} e^{-2j^2x^2}
 
-This can be computed by summing terms until a convergence criteria is achieved.
+This can be computed by summing terms until a convergence criterion is achieved.
 The implementation in Numerical Recipes gives this a hundred terms to converge
 before failing.
 
@@ -186,13 +186,13 @@ of the test statistic calculation in the code, the simpler version being used to
 probabilistically verify the more efficient implementation.
 
 Non-parametricity and generality are the great advantages of the
-Kolomogorov-Smirnov test but these are balanced by drawbacks in ability to
+Kolmogorov-Smirnov test but these are balanced by drawbacks in ability to
 establish sufficient evidence to reject the null hypothesis.
 
 In particular, the Kolmogorov-Smirnov test is weak in cases when the sample
 empirical cumulative distribution functions do not deviate strongly even though
 the samples are from different distributions. For instance, the
-Kolomogorov-Smirnov test is most sensitive to discrepency near the median of the
+Kolmogorov-Smirnov test is most sensitive to discrepency near the median of the
 samples because this is where differences in the graph are most likely to be
 large. It is less strong near the tails because the cumulative distribution
 functions will both be near 0 or 1 and the difference between them less
@@ -202,7 +202,7 @@ reject the null hypothesis.
 
 The Chi-squared test is also used for testing whether samples are from the same
 distribution but this is done with a binning discretization of the data. The
-Kolomogorov-Smirnov test does not require this.
+Kolmogorov-Smirnov test does not require this.
 
 
 A Field Manual for Rust
@@ -229,11 +229,11 @@ source development with contributions from Mozilla and Samsung.
 .. _Servo: https://servo.org
 
 The best introduction to Rust is the `Rust Book`_. Newcomers should also read
-Steve Klabnik's `alternative introdution to Rust`_ for the upfront no-nonsense
+Steve Klabnik's `alternative introduction to Rust`_ for the upfront no-nonsense
 dive into memory ownership, the crux concept for Rust beginners.
 
 .. _Rust Book: https://doc.rust-lang.org/book
-.. _alternative introdution to Rust: http://words.steveklabnik.com/a-new-introduction-to-rust
+.. _alternative introduction to Rust: http://words.steveklabnik.com/a-new-introduction-to-rust
 
 Those in a hurry can quickstart with these slide decks by:
 
@@ -364,7 +364,7 @@ two samples to compare and the desired confidence level.
 The Kolmogorov-Smirnov test as implemented works for any data with a ``Clone``
 and an ``Ord`` trait implementation in Rust. So it is possible, but pretty
 useless, to test samples of characters, strings and lists. In truth, the
-Kolmorogov-Smirnov test requires the samples to be taken from a continuous
+Kolmogorov-Smirnov test requires the samples to be taken from a continuous
 distribution, so discrete data like characters and strings are cute to consider
 but invalid test data.
 
@@ -452,7 +452,7 @@ Sequences from :math:`N(0, 1)`, :math:`N(0, 2)`, and :math:`N(1, 1)` are
 included in the
 `Github repository <https://github.com/daithiocrualaoich/kolmogorov_smirnov>`_.
 :math:`N(0, 2)` is included mainly just to troll, calculating :math:`\sqrt{2}`
-and drawing attention to the limitations of the floating point represention of
+and drawing attention to the limitations of the floating point representation of
 irrational numbers.
 
 .. sourcecode:: bash
@@ -470,7 +470,7 @@ get. The :math:`N(0, 1)` data is lumpy and not single peaked.
 
 .. image:: images/n02-1.png
 
-:math:`N(1, 1)` by contrast looks suprisingly like the normal data diagrams in
+:math:`N(1, 1)` by contrast looks surprisingly like the normal data diagrams in
 textbooks.
 
 .. image:: images/n11-1.png
@@ -662,7 +662,7 @@ tied highest, between ``dat/normal_0_1.4.tsv`` and ``dat/normal_0_2.1.tsv``.
 .. image:: images/n014n021-1.png
 .. image:: images/n014n021ecdf-1.png
 
-This is just incredibly borderline. There is very strong difference on the left
+This is just incredibly borderline. There is a very strong difference on the left
 side but it falls fractionally short of the required confidence level. Note how
 this also illustrates the bias in favour of the null hypothesis that the two
 samples are from the same distribution.
@@ -858,7 +858,7 @@ the weight is packed around .9s to 1s.
 
 .. image:: images/http3-density-1.png
 
-``dat/http_ttime.4.tsv`` has a long tail for an outliers, likely to be request
+``dat/http_ttime.4.tsv`` has a long tail for an outlier, likely to be request
 timeouts.
 
 .. image:: images/http4-density-1.png
@@ -906,7 +906,7 @@ minute granularity stock price data from Google Finance using:
 The HTTP parameters in the call specify:
 
 * ``i=60``: This is the sample interval in seconds, i.e. get per-minute data.
-  The minimum sample interval available is sixy seconds.
+  The minimum sample interval available is sixty seconds.
 * ``p=14d``: Return data for the previous fourteen days.
 * ``f=d,c,h,l,o,v``: Include columns in the result for sample interval start
   date, closing price, high price value, low price value, opening price, and
@@ -1169,7 +1169,7 @@ a real scenario and we can rewrite the test as follows:
         quickcheck(prop as fn(u32) -> TestResult);
     }
 
-Here, the cases where the property legimately doesn't hold are excluded by
+Here, the cases where the property legitimately doesn't hold are excluded by
 returning``TestResult::discard()``. This causes QuickCheck to retry the test
 with the next randomly generated value instead.
 
