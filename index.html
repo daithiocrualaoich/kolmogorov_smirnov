@@ -1,0 +1,1158 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <script type="text/javascript">
+
+      var _gaq = _gaq || [];
+      _gaq.push(['_setAccount', 'UA-71626319-1']);
+      _gaq.push(['_trackPageview']);
+
+      (function() {
+        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+      })();
+    </script>
+    <title>The Kolmogorov-Smirnov Test &mdash; Kolmogorov-Smirnov</title>
+    
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Kolmogorov-Smirnov" href="#" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="the-kolmogorov-smirnov-test">
+<h1>The Kolmogorov-Smirnov Test<a class="headerlink" href="#the-kolmogorov-smirnov-test" title="Permalink to this headline">¶</a></h1>
+<div class="toctree-wrapper compound">
+<ul class="simple">
+</ul>
+</div>
+<p>A visit to a data and statistical technique useful to software engineers. We
+learn about some Rust too along the way.</p>
+<p>The code and examples here are available on
+<a class="reference external" href="https://github.com/daithiocrualaoich/kolmogorov_smirnov">Github</a>. The Rust
+library is on <a class="reference external" href="https://crates.io/crates/kolmogorov_smirnov">crates.io</a>.</p>
+<div class="section" id="kolmogorov-smirnov-hypothesis-testing">
+<h2>Kolmogorov-Smirnov Hypothesis Testing<a class="headerlink" href="#kolmogorov-smirnov-hypothesis-testing" title="Permalink to this headline">¶</a></h2>
+<p>The Kolmogorov-Smirnov test is a hypothesis test procedure for determining if
+two samples of data are from the same distribution. The test is non-parametric
+and entirely agnostic to what this distribution actually is. The fact that we
+never have to know the distribution the samples come from is incredibly useful,
+especially in software and operations where the distributions are hard to
+express and difficult to calculate with.</p>
+<p>It is really surprising that such a useful test exists. This is an unkind
+Universe, we should be completely on our own.</p>
+<p>The test description may look a bit hard in the outline below but skip ahead to
+the implementation because the Kolmogorov-Smirnov test is incredibly easy in
+practice.</p>
+<p>The Kolmogorov-Smirnov test is covered in <a class="reference external" href="http://www.aip.de/groups/soe/local/numres">Numerical Recipes</a>. There is a
+<a class="reference external" href="http://www.aip.de/groups/soe/local/numres/bookcpdf/c14-3.pdf">pdf</a> available
+from the third edition of Numerical Recipes in C.</p>
+<p>The <a class="reference external" href="https://en.wikipedia.org/wiki/Kolmogorov%E2%80%93Smirnov_test">Wikipedia article</a>
+is a useful overview but light about proof details. If you are interested in
+why the test statistic has a distribution that is independent and useful for
+constructing the test then these
+<a class="reference external" href="http://ocw.mit.edu/courses/mathematics/18-443-statistics-for-applications-fall-2006/lecture-notes/lecture14.pdf">MIT lecture notes</a>
+give a sketch overview.</p>
+<p>See this <a class="reference external" href="https://vimeo.com/95069158">introductory talk</a> by Toufic Boubez at
+Monitorama for an application of the Kolmogorov-Smirnov test to metrics and
+monitoring in software operations. The slides are available on
+<a class="reference external" href="http://www.slideshare.net/tboubez/simple-math-for-anomaly-detection-toufic-boubez-metafor-software-monitorama-pdx-20140505">slideshare</a>.</p>
+<div class="section" id="the-test-statistic">
+<h3>The Test Statistic<a class="headerlink" href="#the-test-statistic" title="Permalink to this headline">¶</a></h3>
+<p>The Kolmogorov-Smirnov test is constructed as a statistical hypothesis test. We
+determine a null hypothesis, <img class="math" src="_images/math/db2c44abe31cf800b185da896a5432387d8f401d.png" alt="H_0"/>, that the two samples we are testing
+come from the same distribution. Then we search for evidence that this
+hypothesis should be rejected and express this in terms of a probability. If
+the likelihood of the samples being from different distributions exceeds a
+confidence level we demand the original hypothesis is rejected in favour of the
+hypothesis, <img class="math" src="_images/math/21cc7040dca8c66724474b79619e9d87a4b496c8.png" alt="H_1"/>, that the two samples are from different distributions.</p>
+<p>To do this we devise a single number calculated from the samples, i.e. a
+statistic. The trick is to find a statistic which has a range of values that do
+not depend on things we do not know. Like the actual underlying distributions in
+this case.</p>
+<p>The test statistic in the Kolmogorov-Smirnov test is very easy, it is just the
+maximum vertical distance between the empirical cumulative distribution
+functions of the two samples. The empirical cumulative distribution of a sample
+is the proportion of the sample values that are less than or equal to a given
+value.</p>
+<p>For instance, in this plot of the empirical cumulative distribution functions
+of normally distributed data, <img class="math" src="_images/math/b1dfe2cac3b8c2bf96e4d4dce66afe9aef4dda03.png" alt="N(0, 1)"/> and <img class="math" src="_images/math/feefe80143b5bee7f381a2d00ad37e9fc58be311.png" alt="N(0, 2)"/> samples, the
+maximum vertical distance between the lines is at about -1.5 and 1.5.</p>
+<img alt="_images/n01n02ecdf-1.png" src="_images/n01n02ecdf-1.png" />
+<p>The vertical distance is a lot clearer for an <img class="math" src="_images/math/b1dfe2cac3b8c2bf96e4d4dce66afe9aef4dda03.png" alt="N(0, 1)"/> sample against
+<img class="math" src="_images/math/bff727432da2201266a2d65bb3517a401c9ffa7b.png" alt="N(1, 1)"/>. The maximum vertical distance occurs somewhere around zero and
+is quite large, maybe about 0.35 in size. This is significant evidence that the
+two samples are from different distributions.</p>
+<img alt="_images/n01n11ecdf-1.png" src="_images/n01n11ecdf-1.png" />
+<p>As an aside, these examples demonstrate an important note about the application
+of the Kolmogorov-Smirnov test. It is much better at detecting distributional
+differences when the sample medians are far apart than it is at detecting
+when the tails are different but the main mass of the distributions is around
+the same values.</p>
+<p>So, more formally, suppose <img class="math" src="_images/math/052fd265afd6d56a7143b0bcf7232e2d86f2dc7e.png" alt="X_i"/> are n independent and identically
+distributed observations of a continuous value. The empirical cumulative
+distribution function, <img class="math" src="_images/math/bacdaf2f979238c05ec1690cd4777be7056b07d7.png" alt="F_n"/>, is:</p>
+<div class="math">
+<p><img src="_images/math/fa8efad541845aeb3a36cade8cee92dd96075140.png" alt="F_n(x) = \frac{1}{n}\sum_{i=1}^n I_{(-\infty,x]}(X_i)"/></p>
+</div><p>Where <img class="math" src="_images/math/5d9e7b2aec3287330051a115f2ea3cdc8c7a6587.png" alt="I"/> is the indicator function which is 1 if <img class="math" src="_images/math/052fd265afd6d56a7143b0bcf7232e2d86f2dc7e.png" alt="X_i"/> is less than
+or equal to <img class="math" src="_images/math/188c175aac0a8a9c22499336711b5d7256407254.png" alt="x"/> and 0 otherwise.</p>
+<p>This just says that <img class="math" src="_images/math/de3358b0714efa74a67864b62923f596e6fa2523.png" alt="F_n(x)"/> is the number of samples observed that are
+less than or equal to <img class="math" src="_images/math/188c175aac0a8a9c22499336711b5d7256407254.png" alt="x"/> divided by the total number of samples. But it
+says it in a complicated way so we can feel clever about ourselves.</p>
+<p>The empirical cumulative distribution function is an unbiased estimator for the
+underlying cumulative distribution function, incidentally.</p>
+<p>For two samples having empirical cumulative distribution functions
+<img class="math" src="_images/math/de3358b0714efa74a67864b62923f596e6fa2523.png" alt="F_n(x)"/> and <img class="math" src="_images/math/da8cc3c48d781486aa839c010e008d46e65ed190.png" alt="G_m(x)"/>, the Kolmogorov-Smirnov test statistic,
+<img class="math" src="_images/math/9dfa31437b58c0473299320aa638151cd88cf61b.png" alt="D"/>, is the maximum absolute difference between <img class="math" src="_images/math/de3358b0714efa74a67864b62923f596e6fa2523.png" alt="F_n(x)"/> and
+<img class="math" src="_images/math/da8cc3c48d781486aa839c010e008d46e65ed190.png" alt="G_m(x)"/> for the same <img class="math" src="_images/math/188c175aac0a8a9c22499336711b5d7256407254.png" alt="x"/>,  i.e. the largest vertical distance
+between the plots in the graph.</p>
+<div class="math">
+<p><img src="_images/math/fb527224cb294c88a01dd92fc695752590962a58.png" alt="D = \sup_{-\infty &lt; x &lt; \infty} |F_n(x) - G_m(x)|"/></p>
+</div><p>The Glivenko–Cantelli theorem says if the <img class="math" src="_images/math/de3358b0714efa74a67864b62923f596e6fa2523.png" alt="F_n(x)"/> is made from samples
+from the same distribution as <img class="math" src="_images/math/da8cc3c48d781486aa839c010e008d46e65ed190.png" alt="G_m(x)"/> then this statistic &#8220;almost surely
+converges to zero in the limit when n goes to infinity.&#8221; This is an extremely
+technical statement that we are simply going to ignore.</p>
+</div>
+<div class="section" id="two-sample-test">
+<h3>Two Sample Test<a class="headerlink" href="#two-sample-test" title="Permalink to this headline">¶</a></h3>
+<p>Surprisingly, the distribution of <img class="math" src="_images/math/9dfa31437b58c0473299320aa638151cd88cf61b.png" alt="D"/> can be approximated well in the case
+that the samples are drawn from the same distribution. This means we can build
+a statistic test that rejects this null hypothesis for a given confidence level
+if <img class="math" src="_images/math/9dfa31437b58c0473299320aa638151cd88cf61b.png" alt="D"/> exceeds an easily calculable value.</p>
+<p>Tables of critical values are available, for instance the <a class="reference external" href="https://www.webdepot.umontreal.ca/Usagers/angers/MonDepotPublic/STT3500H10/Critical_KS.pdf">SOEST tables</a>
+describe a test implementation for samples of more than twelve where we reject
+the null hypothesis, i.e. decide that the samples are from different
+distributions, if:</p>
+<div class="math">
+<p><img src="_images/math/82b7375dd61c12ab6cc343e8be1c23eac3fd4ef1.png" alt="D &gt; c(\alpha)\sqrt{\frac{n + m}{n m}}"/></p>
+</div><p>Where n and m are the sample sizes. A 95% confidence level corresponds to
+<img class="math" src="_images/math/5e19daa1eb7bd77ebe60c0546b1a2304d235cb7f.png" alt="\alpha = 0.05"/> for which <img class="math" src="_images/math/9e58a9e0b0cce2f132f46ec7957d5ea07c02101d.png" alt="c(\alpha) = 1.36"/>.</p>
+<p>Alternatively, Numerical Recipes describes a direct calculation that works well
+for:</p>
+<div class="math">
+<p><img src="_images/math/2667f7baa93a4219c03d9d46f527a682d3d8b1ff.png" alt="N_{n, m} = \frac{n m}{n + m} \geq 4"/></p>
+</div><p>i.e. for samples of more than seven since <img class="math" src="_images/math/176e0ba8d66853e26b9bcfbeed571ff39d8f07d6.png" alt="N_{8, 8} = 4"/>.</p>
+<p>Numerical Recipes continues by claiming the probability that the test statistic
+is greater than the value observed is approximately:</p>
+<div class="math">
+<p><img src="_images/math/650b24b8ef315acfdd6eeca0ab02d81cceed9db7.png" alt="P(D &gt; \text{observed}) = Q_{KS}\Big(\Big[\sqrt{N_{n, m}} + 0.12 + 0.11/\sqrt{N_{n, m}}\Big] D\Big)"/></p>
+</div><p>With <img class="math" src="_images/math/fcb41f2b9e9b45934eb731105cb0fd65b8c88183.png" alt="Q_{KS}"/> defined as:</p>
+<div class="math">
+<p><img src="_images/math/71db49269aa6b2f877fa5f30aa47fc2d54948e88.png" alt="Q_{KS}(x) = 2 \sum_{j=1}^{\infty} (-1)^{j-1} e^{-2j^2x^2}"/></p>
+</div><p>This can be computed by summing terms until a convergence criterion is achieved.
+The implementation in Numerical Recipes gives this a hundred terms to converge
+before failing.</p>
+<p>The difference between the two approximations is marginal. The Numerical
+Recipes approach produces slightly smaller critical values for rejecting the
+null hypothesis as can be seen in the following plot of critical values for the
+95% confidence level where one of the samples has size 256. The x axis varies
+over the other sample size, the y axis being the critical value.</p>
+<img alt="_images/critical-values-1.png" src="_images/critical-values-1.png" />
+<p>The SOEST tables are an excellent simplifying approximation.</p>
+</div>
+<div class="section" id="discussion">
+<h3>Discussion<a class="headerlink" href="#discussion" title="Permalink to this headline">¶</a></h3>
+<p>A straightforward implementation of this test can be found in the
+<a class="reference external" href="https://github.com/daithiocrualaoich/kolmogorov_smirnov">Github repository</a>.
+Calculating the test statistic using the empirical cumulative distribution
+functions is probably as complicated as it gets for this. There are two versions
+of the test statistic calculation in the code, the simpler version being used to
+probabilistically verify the more efficient implementation.</p>
+<p>Non-parametricity and generality are the great advantages of the
+Kolmogorov-Smirnov test but these are balanced by drawbacks in ability to
+establish sufficient evidence to reject the null hypothesis.</p>
+<p>In particular, the Kolmogorov-Smirnov test is weak in cases when the sample
+empirical cumulative distribution functions do not deviate strongly even though
+the samples are from different distributions. For instance, the
+Kolmogorov-Smirnov test is most sensitive to discrepency near the median of the
+samples because this is where differences in the graph are most likely to be
+large. It is less strong near the tails because the cumulative distribution
+functions will both be near 0 or 1 and the difference between them less
+pronounced. Location and shape related scenarios that constrain the <img class="math" src="_images/math/9dfa31437b58c0473299320aa638151cd88cf61b.png" alt="D"/>
+test statistic reduce the ability of the Kolmogorov-Smirnov test to correctly
+reject the null hypothesis.</p>
+<p>The Chi-squared test is also used for testing whether samples are from the same
+distribution but this is done with a binning discretization of the data. The
+Kolmogorov-Smirnov test does not require this.</p>
+</div>
+</div>
+<div class="section" id="a-field-manual-for-rust">
+<h2>A Field Manual for Rust<a class="headerlink" href="#a-field-manual-for-rust" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference external" href="https://www.rust-lang.org">Rust</a> is a Mozilla sponsored project to create a safe, fast systems language.
+There is an entire free
+<a class="reference external" href="http://www.oreilly.com/programming/free/files/why-rust.pdf">O&#8217;Reilly book</a>
+on why create this new language but the reasons include:</p>
+<ul class="simple">
+<li>Robust memory management. It is impossible to deference null or dangling
+pointers in Rust.</li>
+<li>Improved security, reducing the incidence of flaws like buffer overflow
+exploits.</li>
+<li>A light runtime with no garbage collection and overhead means Rust is
+ideal to embed in other languages and platforms like Ruby, Python, and Node.</li>
+<li>Rust has many modern language features unavailable in other systems languages.</li>
+</ul>
+<p>Rust is a serious language, capable of very serious projects. The current
+flagship Rust project, for instance, is <a class="reference external" href="https://servo.org">Servo</a>, a browser engine under open
+source development with contributions from Mozilla and Samsung.</p>
+<p>The best introduction to Rust is the <a class="reference external" href="https://doc.rust-lang.org/book">Rust Book</a>. Newcomers should also read
+Steve Klabnik&#8217;s <a class="reference external" href="http://words.steveklabnik.com/a-new-introduction-to-rust">alternative introduction to Rust</a> for the upfront no-nonsense
+dive into memory ownership, the crux concept for Rust beginners.</p>
+<p>Those in a hurry can quickstart with these slide decks by:</p>
+<ul class="simple">
+<li><a class="reference external" href="http://hackepfl.github.io/rust-workshop-slides/slides.html">Dimiter Petrov and Romain Ruetschi</a></li>
+<li><a class="reference external" href="https://speakerdeck.com/dbrgn/intro-to-rust">Danilo Bargen</a></li>
+</ul>
+<p>Two must-read learning resources are <a class="reference external" href="http://zsiciarz.github.io/24daysofrust">24 Days of Rust</a>, a charming tour around
+the libraries and world of Rust, and <a class="reference external" href="http://jadpole.github.io/arcaders/arcaders-1-0">ArcadeRS</a>, a tutorial in Rust about
+writing video games.</p>
+<p>And finally, if Servo has you interested in writing a browser engine in Rust,
+then <a class="reference external" href="http://limpet.net/mbrubeck/2014/08/08/toy-layout-engine-1.html">Let&#8217;s build a browser engine!</a> is the series for you. It walks through
+creating a simple HTML rendering engine in Rust.</p>
+<div class="section" id="moral-support-for-learning-the-memory-rules">
+<h3>Moral Support for Learning the Memory Rules<a class="headerlink" href="#moral-support-for-learning-the-memory-rules" title="Permalink to this headline">¶</a></h3>
+<p>The Road to Rust is not royal, there is no pretending otherwise. The Rust memory
+rules about lifetime, ownership, and borrowing are especially hard to learn.</p>
+<p>It probably doesn&#8217;t much feel like it but Rust is really trying to help us with
+these rules. And to be fair to Rust, it hasn&#8217;t segfaulted me so far.</p>
+<p>But that is no comfort when the compiler won&#8217;t build your code and you can&#8217;t
+figure out why. The best advice is probably to read as much about the Rust
+memory rules as you can and to keep reading about them over and over until they
+start to make some sense. Don&#8217;t worry, everybody finds it difficult at first.</p>
+<p>Although adherence to the rules provides the compiler with invariant guarantees
+that can be used to construct proofs of memory safety, the rationale for these
+rules is largely unimportant. What is necessary is to find a way to work with
+them so your programs compile.</p>
+<p>Remember too that learning to manage memory safely in C/C++ is much harder than
+learning Rust and there is no compiler checking up on you in C/C++ to make sure
+your memory management is correct.</p>
+<p>Keep at it. It takes a long time but it does become clearer!</p>
+</div>
+<div class="section" id="niche-observations">
+<h3>Niche Observations<a class="headerlink" href="#niche-observations" title="Permalink to this headline">¶</a></h3>
+<p>This section is a scattering of Rust arcana that caught my attention. Nothing
+here that doesn&#8217;t interest you is worth troubling too much with and you should
+skip on past.</p>
+<p><a class="reference external" href="https://travis-ci.org">Travis CI</a> has excellent support for building Rust projects, including with
+the beta and nightly versions. It is simple to set up by configuring a
+<code class="docutils literal"><span class="pre">travis.yml</span></code> according to the
+<a class="reference external" href="https://docs.travis-ci.com/user/languages/rust">Travis Rust documentation</a>.
+See the <a class="reference external" href="https://travis-ci.org/daithiocrualaoich/kolmogorov_smirnov">Travis CI build for this project</a> for an example.</p>
+<p>Rust has a formatter in <a class="reference external" href="https://github.com/rust-lang-nursery/rustfmt">rustfmt</a> and a lint in <a class="reference external" href="https://github.com/Manishearth/rust-clippy">rust-clippy</a>. The formatter
+is a simple install using <code class="docutils literal"><span class="pre">cargo</span> <span class="pre">install</span></code> and provides a binary command. The
+lint requires more integration into your project, and currently also needs the
+nightly version of Rust for plugin support. Both projects are great for helping
+Rust newcomers.</p>
+<p>Foreign Function Interface is an area where Rust excels. The absence of a large
+runtime means Rust is great for embedding in other languages and it has a wide
+range as a C replacement in writing modules for Python, Ruby, Node, etc. The
+<a class="reference external" href="https://doc.rust-lang.org/book/rust-inside-other-languages.html">Rust Book introduction</a>
+demonstrates how easy it is call Rust from other languages.
+<a class="reference external" href="https://zsiciarz.github.io/24daysofrust/book/day23.html">Day 23 of Rust</a> and
+the <a class="reference external" href="http://jakegoulding.com/rust-ffi-omnibus">Rust FFI Omnibus</a> are additional resources for Rust FFI.</p>
+<p>Rust is being used experimentally for embedded development. <a class="reference external" href="http://zinc.rs">Zinc</a> is work on
+building a realtime ARM operating system using Rust primarily, and the following
+are posts about building software for embedded devices directly using Rust.</p>
+<ul class="simple">
+<li><a class="reference external" href="http://antoinealb.net/programming/2015/05/01/rust-on-arm-microcontroller.html">Rust bare metal on ARM microcontroller</a>.</li>
+<li><a class="reference external" href="http://spin.atomicobject.com/2015/02/20/rust-language-c-embedded">Embedded Rust Right Now!</a></li>
+</ul>
+<p>Relatedly, <a class="reference external" href="https://github.com/Ogeon/rust-on-raspberry-pi/">Rust on Raspberry Pi</a> is a guide to cross-compiling Rust code for
+the Raspberry Pi.</p>
+<p>Rust treats the code snippets in your project documentation as tests and makes a
+point of compiling them. This helps keep documentation in sync with code but it
+is a shock the first time you get a compiler error for a documentation code
+snippet and it takes you ages to realise what is happening.</p>
+</div>
+</div>
+<div class="section" id="kolmogorov-smirnov-library">
+<h2>Kolmogorov-Smirnov Library<a class="headerlink" href="#kolmogorov-smirnov-library" title="Permalink to this headline">¶</a></h2>
+<p>The Kolmogorov-Smirnov test implementation is available as a Cargo
+<a class="reference external" href="https://crates.io/crates/kolmogorov_smirnov/">crate</a>, so it is simple to
+incorporate into your programs. Add the dependency to your <code class="docutils literal"><span class="pre">Cargo.toml</span></code> file.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="p">[</span><span class="n">dependencies</span><span class="p">]</span>
+<span class="n">kolmogorov_smirnov</span> <span class="o">=</span> <span class="s">&quot;1.1.0&quot;</span>
+</pre></div>
+</div>
+<p>Then to use the test, call the <code class="docutils literal"><span class="pre">kolmogorov_smirnov::test</span></code> function with the
+two samples to compare and the desired confidence level.</p>
+<div class="highlight-rust"><div class="highlight"><pre><span class="k">extern</span><span class="w"> </span><span class="n">crate</span><span class="w"> </span><span class="n">kolmogorov_smirnov</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">ks</span><span class="p">;</span><span class="w"></span>
+
+<span class="kd">let</span><span class="w"> </span><span class="n">xs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">vec</span><span class="o">!</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">6</span><span class="p">,</span><span class="w"> </span><span class="mi">7</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="p">,</span><span class="w"> </span><span class="mi">9</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">11</span><span class="p">,</span><span class="w"> </span><span class="mi">12</span><span class="p">);</span><span class="w"></span>
+<span class="kd">let</span><span class="w"> </span><span class="n">ys</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">vec</span><span class="o">!</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span><span class="w"> </span><span class="mi">11</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">9</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="p">,</span><span class="w"> </span><span class="mi">7</span><span class="p">,</span><span class="w"> </span><span class="mi">6</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+<span class="kd">let</span><span class="w"> </span><span class="n">confidence</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.95</span><span class="p">;</span><span class="w"></span>
+
+<span class="kd">let</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ks</span><span class="o">::</span><span class="n">test</span><span class="p">(</span><span class="o">&amp;</span><span class="n">xs</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">ys</span><span class="p">,</span><span class="w"> </span><span class="n">confidence</span><span class="p">);</span><span class="w"></span>
+
+<span class="k">if</span><span class="w"> </span><span class="o">!</span><span class="n">result</span><span class="p">.</span><span class="n">is_rejected</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="c1">// Woot! Samples are from the same distribution with 95% confidence.</span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>The Kolmogorov-Smirnov test as implemented works for any data with a <code class="docutils literal"><span class="pre">Clone</span></code>
+and an <code class="docutils literal"><span class="pre">Ord</span></code> trait implementation in Rust. So it is possible, but pretty
+useless, to test samples of characters, strings and lists. In truth, the
+Kolmogorov-Smirnov test requires the samples to be taken from a continuous
+distribution, so discrete data like characters and strings are cute to consider
+but invalid test data.</p>
+<p>Still being strict, this test condition also does not hold for integer data
+unless some hands are waved about the integer data being embedded into
+real numbers and a distribution cooked up from the probability weights. We make
+some compromises and allowances.</p>
+<p>If you have floating point or integer data to test, you can use the included
+test runner binaries, <code class="docutils literal"><span class="pre">ks_f64</span></code> and <code class="docutils literal"><span class="pre">ks_i32</span></code>. These operate on single-column
+headerless data files and test two commandline argument filenames against each
+other at 95% confidence.</p>
+<div class="highlight-python"><div class="highlight"><pre>$ cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_0_1.1.tsv
+Samples are from the same distribution.
+test statistic = 0.0399169921875
+critical value = 0.08550809323787689
+reject probability = 0.18365715210599798
+
+$ cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_1_1.1.tsv
+Samples are from different distribution.
+test statistic = 0.361572265625
+critical value = 0.08550809323787689
+reject probability = 1
+</pre></div>
+</div>
+<p>Testing floating point numbers is a headache because Rust floating point types
+(correctly) do not implement the <code class="docutils literal"><span class="pre">Ord</span></code> trait, only the <code class="docutils literal"><span class="pre">PartialOrd</span></code> trait.
+This is because things like <code class="docutils literal"><span class="pre">NaN</span></code> are not comparable and the order cannot be
+total over all values in the datatype.</p>
+<p>The test runner for floating point types is implemented using a wrapper type
+that implements a total order, crashing on unorderable elements. This suffices
+in practice since the unorderable elements will break the test anyway.</p>
+<p>The implementation uses the Numerical Recipes approximation for rejection
+probabilities rather than the almost as accurate SOEST table approximation for
+critical values. This allows the additional reporting of the reject probability
+which isn&#8217;t available using the SOEST approach.</p>
+</div>
+<div class="section" id="datasets">
+<h2>Datasets<a class="headerlink" href="#datasets" title="Permalink to this headline">¶</a></h2>
+<p>Statistical tests are more fun if you have datasets to run them over.</p>
+<div class="section" id="n-0-1">
+<h3>N(0,1)<a class="headerlink" href="#n-0-1" title="Permalink to this headline">¶</a></h3>
+<p>Because it is traditional and because it is easy and flexible, start with some
+normally distributed data.</p>
+<p>Rust can generate normal data using the <a class="reference external" href="https://doc.rust-lang.org/rand/rand/distributions/">rand::distributions</a> module. If
+<code class="docutils literal"><span class="pre">mean</span></code> and <code class="docutils literal"><span class="pre">variance</span></code> are <code class="docutils literal"><span class="pre">f64</span></code> values representing the mean and variance
+of the desired normal deviate, then the following code generates the deviate.
+Note that the <code class="docutils literal"><span class="pre">Normal::new</span></code> call requires the mean and standard deviation as
+parameters, so it is necessary to take the square root of the variance to
+provide the standard deviation value.</p>
+<div class="highlight-rust"><div class="highlight"><pre><span class="k">extern</span><span class="w"> </span><span class="n">crate</span><span class="w"> </span><span class="n">rand</span><span class="p">;</span><span class="w"></span>
+<span class="kn">use</span><span class="w"> </span><span class="n">rand</span><span class="o">::</span><span class="n">distributions</span><span class="o">::</span><span class="p">{</span><span class="n">Normal</span><span class="p">,</span><span class="w"> </span><span class="n">IndependentSample</span><span class="p">};</span><span class="w"></span>
+
+<span class="kd">let</span><span class="w"> </span><span class="n">mean</span><span class="o">:</span><span class="w"> </span><span class="kt">f64</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">...</span><span class="w"></span>
+<span class="kd">let</span><span class="w"> </span><span class="n">variance</span><span class="o">:</span><span class="w"> </span><span class="kt">f64</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">...</span><span class="w"></span>
+
+<span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">rng</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">rand</span><span class="o">::</span><span class="n">thread_rng</span><span class="p">();</span><span class="w"></span>
+<span class="kd">let</span><span class="w"> </span><span class="n">normal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Normal</span><span class="o">::</span><span class="n">new</span><span class="p">(</span><span class="n">mean</span><span class="p">,</span><span class="w"> </span><span class="n">variance</span><span class="p">.</span><span class="n">sqrt</span><span class="p">());</span><span class="w"></span>
+
+<span class="kd">let</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">normal</span><span class="p">.</span><span class="n">ind_sample</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">rng</span><span class="p">);</span><span class="w"></span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal"><span class="pre">kolmogorov_smirnov</span></code> library includes a binary for generating sequences of
+independently distributed Normal deviates. It has the following usage.</p>
+<div class="highlight-python"><div class="highlight"><pre>cargo run --bin normal &lt;num_deviates&gt; &lt;mean&gt; &lt;variance&gt;
+</pre></div>
+</div>
+<p>The <code class="docutils literal"><span class="pre">-q</span></code> option is useful too for suppressing <code class="docutils literal"><span class="pre">cargo</span></code> build messages in the
+output.</p>
+<p>Sequences from <img class="math" src="_images/math/b1dfe2cac3b8c2bf96e4d4dce66afe9aef4dda03.png" alt="N(0, 1)"/>, <img class="math" src="_images/math/feefe80143b5bee7f381a2d00ad37e9fc58be311.png" alt="N(0, 2)"/>, and <img class="math" src="_images/math/bff727432da2201266a2d65bb3517a401c9ffa7b.png" alt="N(1, 1)"/> are
+included in the
+<a class="reference external" href="https://github.com/daithiocrualaoich/kolmogorov_smirnov">Github repository</a>.
+<img class="math" src="_images/math/feefe80143b5bee7f381a2d00ad37e9fc58be311.png" alt="N(0, 2)"/> is included mainly just to troll, calculating <img class="math" src="_images/math/f8117cd5193e9c43e4cac4a86cc0298690ef3f79.png" alt="\sqrt{2}"/>
+and drawing attention to the limitations of the floating point representation of
+irrational numbers.</p>
+<div class="highlight-bash"><div class="highlight"><pre>cargo run -q --bin normal <span class="m">8192</span> <span class="m">0</span> <span class="m">1</span> &gt; normal_0_1.tsv
+cargo run -q --bin normal <span class="m">8192</span> <span class="m">0</span> <span class="m">2</span> &gt; normal_0_2.tsv
+cargo run -q --bin normal <span class="m">8192</span> <span class="m">1</span> <span class="m">1</span> &gt; normal_1_1.tsv
+</pre></div>
+</div>
+<p>These are not the most beautiful of Normal curves, but you must take what you
+get. The <img class="math" src="_images/math/b1dfe2cac3b8c2bf96e4d4dce66afe9aef4dda03.png" alt="N(0, 1)"/> data is lumpy and not single peaked.</p>
+<img alt="_images/n01-1.png" src="_images/n01-1.png" />
+<p><img class="math" src="_images/math/feefe80143b5bee7f381a2d00ad37e9fc58be311.png" alt="N(0, 2)"/> is similar, though less of a disaster near the mean.</p>
+<img alt="_images/n02-1.png" src="_images/n02-1.png" />
+<p><img class="math" src="_images/math/bff727432da2201266a2d65bb3517a401c9ffa7b.png" alt="N(1, 1)"/> by contrast looks surprisingly like the normal data diagrams in
+textbooks.</p>
+<img alt="_images/n11-1.png" src="_images/n11-1.png" />
+<p>The following is a plot of all three datasets to illustrate the relative widths,
+heights and supports.</p>
+<img alt="_images/n01n02n11-1.png" src="_images/n01n02n11-1.png" />
+<div class="section" id="results">
+<h4>Results<a class="headerlink" href="#results" title="Permalink to this headline">¶</a></h4>
+<p>The Kolmogorov-Smirnov test is successful at establishing the <img class="math" src="_images/math/b1dfe2cac3b8c2bf96e4d4dce66afe9aef4dda03.png" alt="N(0, 1)"/>
+datasets are all from the same distribution in all combinations of the test.</p>
+<div class="highlight-python"><div class="highlight"><pre>$ cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_0_1.1.tsv
+Samples are from the same distribution.
+test statistic = 0.0399169921875
+critical value = 0.08550809323787689
+reject probability = 0.18365715210599798
+
+$ cargo run -q --bin ks_f64 dat/normal_0_1.tsv dat/normal_0_1.2.tsv
+Samples are from the same distribution.
+test statistic = 0.0595703125
+critical value = 0.08550809323787689
+reject probability = 0.6677483327196572
+
+...
+</pre></div>
+</div>
+<p>Save yourself the trouble in reproduction by running this instead:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span class="k">for</span> I in dat/normal_0_1.*
+<span class="k">do</span>
+    <span class="k">for</span> J in dat/normal_0_1.*
+    <span class="k">do</span>
+        <span class="k">if</span> <span class="o">[[</span> <span class="s2">&quot;</span><span class="nv">$I</span><span class="s2">&quot;</span> &lt; <span class="s2">&quot;</span><span class="nv">$J</span><span class="s2">&quot;</span> <span class="o">]]</span>
+        <span class="k">then</span>
+            <span class="nb">echo</span> <span class="nv">$I</span> <span class="nv">$J</span>
+            cargo run -q --bin ks_f64 <span class="nv">$I</span> <span class="nv">$J</span>
+            <span class="nb">echo</span>
+<span class="nb">            echo</span>
+<span class="nb">        </span><span class="k">fi</span>
+    <span class="k">done</span>
+<span class="k">done</span>
+</pre></div>
+</div>
+<p>The <img class="math" src="_images/math/bff727432da2201266a2d65bb3517a401c9ffa7b.png" alt="N(1, 1)"/> datasets also correctly accept the null hypothesis in all
+combinations of dataset inputs when tested against each other.</p>
+<p>However, <img class="math" src="_images/math/feefe80143b5bee7f381a2d00ad37e9fc58be311.png" alt="N(0, 2)"/> successfully passes for all combinations but that
+between <code class="docutils literal"><span class="pre">dat/normal_0_2.tsv</span></code> and <code class="docutils literal"><span class="pre">dat/normal_0_2.1.tsv</span></code> where it fails as a
+false negative.</p>
+<div class="highlight-python"><div class="highlight"><pre>$ cargo run -q --bin ks_f64 dat/normal_0_2.1.tsv dat/normal_0_2.tsv
+Samples are from different distributions.
+test statistic = 0.102783203125
+critical value = 0.08550809323787689
+reject probability = 0.9903113063475989
+</pre></div>
+</div>
+<p>This failure is a demonstration of how the Kolmogorov-Smirnov test is sensitive
+to location because here the mean of the <code class="docutils literal"><span class="pre">dat/normal_0_2.1.tsv</span></code> is shifted
+quite far from the origin.</p>
+<p>This is the density.</p>
+<img alt="_images/n021-1.png" src="_images/n021-1.png" />
+<p>And superimposed with the density from <code class="docutils literal"><span class="pre">dat/normal_0_2.tsv</span></code>.</p>
+<img alt="_images/n02n021-1.png" src="_images/n02n021-1.png" />
+<p>The data for <code class="docutils literal"><span class="pre">dat/normal_0_2.1.tsv</span></code> is the taller density in this graph.
+Notice, in particular, that the mean is shifted left a lot in comparison with
+<code class="docutils literal"><span class="pre">dat/normal_0_2.tsv</span></code>. See also the chunks of non-overlapping weight on the
+left and right hand slopes.</p>
+<p>The difference in means is confirmed by calculation. The dataset for
+<code class="docutils literal"><span class="pre">dat/normal_0_2.tsv</span></code> has mean 0.001973723, whereas the dataset for
+<code class="docutils literal"><span class="pre">dat/normal_0_2.1.tsv</span></code> has mean -0.2145779. By comparison, the other
+<img class="math" src="_images/math/feefe80143b5bee7f381a2d00ad37e9fc58be311.png" alt="N(0, 2)"/> datasets tests have means -0.1308625, -0.08537648, and
+-0.01374325.</p>
+<p>Looking at the empirical cumulative density functions of the false negative
+comparison, we see a significant gap between the curves starting near 0.</p>
+<img alt="_images/n02n021ecdf-1.png" src="_images/n02n021ecdf-1.png" />
+<p>For comparison, here are the overlaid empirical cumulative density functions
+for the other <img class="math" src="_images/math/feefe80143b5bee7f381a2d00ad37e9fc58be311.png" alt="N(0, 2)"/> tests.</p>
+<img alt="_images/n02n022ecdf-1.png" src="_images/n02n022ecdf-1.png" />
+<img alt="_images/n02n023ecdf-1.png" src="_images/n02n023ecdf-1.png" />
+<img alt="_images/n02n024ecdf-1.png" src="_images/n02n024ecdf-1.png" />
+<p>One false negative in thirty unique test pairs at 95% confidence is on the
+successful side of expectations.</p>
+<p>Turning instead to tests that should be expected to fail, the following block
+runs comparisons between datasets from different distributions.</p>
+<div class="highlight-bash"><div class="highlight"><pre><span class="k">for</span> I in dat/normal_0_1.*
+<span class="k">do</span>
+    <span class="k">for</span> J in dat/normal_0_2.*
+    <span class="k">do</span>
+        <span class="nb">echo</span> <span class="nv">$I</span> <span class="nv">$J</span>
+        cargo run -q --bin ks_f64 <span class="nv">$I</span> <span class="nv">$J</span>
+        <span class="nb">echo</span>
+<span class="nb">        echo</span>
+<span class="nb">    </span><span class="k">done</span>
+<span class="k">done</span>
+</pre></div>
+</div>
+<p>The <img class="math" src="_images/math/b1dfe2cac3b8c2bf96e4d4dce66afe9aef4dda03.png" alt="N(0, 1)"/> against <img class="math" src="_images/math/bff727432da2201266a2d65bb3517a401c9ffa7b.png" alt="N(1, 1)"/> and <img class="math" src="_images/math/feefe80143b5bee7f381a2d00ad37e9fc58be311.png" alt="N(0, 2)"/> against
+<img class="math" src="_images/math/bff727432da2201266a2d65bb3517a401c9ffa7b.png" alt="N(1, 1)"/> tests correctly reject the null hypothesis in every variation.
+These tests are easy failures because they are large location changes,
+illustrating again how the Kolmogorov-Smirnov test is sensitive to changes in
+centrally located weight.</p>
+<p>However, there are ten false positives in the comparisons between datasets from
+<img class="math" src="_images/math/b1dfe2cac3b8c2bf96e4d4dce66afe9aef4dda03.png" alt="N(0, 1)"/> and <img class="math" src="_images/math/feefe80143b5bee7f381a2d00ad37e9fc58be311.png" alt="N(0, 2)"/>.</p>
+<p><code class="docutils literal"><span class="pre">dat/normal_0_1.2.tsv</span></code> is reported incorrectly as being from the same
+distribution as the following datasets.</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">dat/normal_0_2.tsv</span></code> at <img class="math" src="_images/math/7a4258f05a426e8d8d089c107eb699105a8c0535.png" alt="P(\text{reject } H_0) = 0.9375"/>,</li>
+<li><code class="docutils literal"><span class="pre">dat/normal_0_2.2.tsv</span></code> at <img class="math" src="_images/math/444ef48b0e3afe5e034d2382f1afdbf36eec4632.png" alt="P(\text{reject } H_0) = 0.6584"/>,</li>
+<li><code class="docutils literal"><span class="pre">dat/normal_0_2.3.tsv</span></code> at <img class="math" src="_images/math/55d64c816f19265ff6b0f88df1ebca07f804396a.png" alt="P(\text{reject } H_0) = 0.9128"/>,</li>
+<li><code class="docutils literal"><span class="pre">dat/normal_0_2.4.tsv</span></code> at <img class="math" src="_images/math/1ea6571d7f5d90e191ff87f0ee71ea45f29b9772.png" alt="P(\text{reject } H_0) = 0.8658"/>.</li>
+</ul>
+<p>Similarly, <code class="docutils literal"><span class="pre">dat/normal_0_1.3.tsv</span></code> is a false positive against:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">dat/normal_0_2.3.tsv</span></code> at <img class="math" src="_images/math/55d64c816f19265ff6b0f88df1ebca07f804396a.png" alt="P(\text{reject } H_0) = 0.9128"/>,</li>
+<li><code class="docutils literal"><span class="pre">dat/normal_0_2.4.tsv</span></code> at <img class="math" src="_images/math/1ea6571d7f5d90e191ff87f0ee71ea45f29b9772.png" alt="P(\text{reject } H_0) = 0.8658"/>.</li>
+</ul>
+<p>And <code class="docutils literal"><span class="pre">dat/normal_0_1.4.tsv</span></code> is a false positive against:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">dat/normal_0_2.1.tsv</span></code> at <img class="math" src="_images/math/9f8c1406b6b505db34d049d2e355f77d40e787bc.png" alt="P(\text{reject } H_0) = 0.9451"/>,</li>
+<li><code class="docutils literal"><span class="pre">dat/normal_0_2.2.tsv</span></code> at <img class="math" src="_images/math/9f8c1406b6b505db34d049d2e355f77d40e787bc.png" alt="P(\text{reject } H_0) = 0.9451"/>,</li>
+<li><code class="docutils literal"><span class="pre">dat/normal_0_2.3.tsv</span></code> at <img class="math" src="_images/math/55d64c816f19265ff6b0f88df1ebca07f804396a.png" alt="P(\text{reject } H_0) = 0.9128"/>,</li>
+<li><code class="docutils literal"><span class="pre">dat/normal_0_2.4.tsv</span></code> at <img class="math" src="_images/math/55d64c816f19265ff6b0f88df1ebca07f804396a.png" alt="P(\text{reject } H_0) = 0.9128"/>.</li>
+</ul>
+<p>Note that many of these false positives have rejection probabilities that are
+high but fall short of the 95% confidence level required. The null hypothesis is
+that the distributions are the same and it is this that must be challenged at
+the 95% level.</p>
+<p>Let&#8217;s examine the test where the rejection probability is lowest, that between
+<code class="docutils literal"><span class="pre">dat/normal_0_1.2.tsv</span></code> and <code class="docutils literal"><span class="pre">dat/normal_0_2.2.tsv</span></code>.</p>
+<div class="highlight-python"><div class="highlight"><pre>$ cargo run -q --bin ks_f64 dat/normal_0_1.2.tsv dat/normal_0_2.2.tsv
+Samples are from the same distribution.
+test statistic = 0.08203125
+critical value = 0.11867932230234146
+reject probability = 0.6584658436106378
+</pre></div>
+</div>
+<p>The overlaid density and empirical cumulative density functions show strong
+difference.</p>
+<img alt="_images/n012n022-1.png" src="_images/n012n022-1.png" />
+<img alt="_images/n012n022ecdf-1.png" src="_images/n012n022ecdf-1.png" />
+<p>The problem, however, is a lack of samples combined with the weakness of the
+Kolmogorov-Smirnov test in detecting differences in spread at the tails. Both of
+these datasets have 256 samples and the critical value for 95% confidence is
+0.1186. This is a large difference to demonstrate at the edges of the empirical
+cumulative distribution functions and in the case of this test the <img class="math" src="_images/math/9dfa31437b58c0473299320aa638151cd88cf61b.png" alt="D"/>
+test statistic is a comfortable 0.082.</p>
+<p>There is insufficient evidence to reject the null hypothesis.</p>
+<p>Let&#8217;s also examine the false positive test where the rejection probability is
+tied highest, between <code class="docutils literal"><span class="pre">dat/normal_0_1.4.tsv</span></code> and <code class="docutils literal"><span class="pre">dat/normal_0_2.1.tsv</span></code>.</p>
+<div class="highlight-python"><div class="highlight"><pre>$ cargo run -q --bin ks_f64 dat/normal_0_1.4.tsv dat/normal_0_2.1.tsv
+Samples are from the same distribution.
+test statistic = 0.1171875
+critical value = 0.11867932230234146
+reject probability = 0.9451734528250557
+</pre></div>
+</div>
+<img alt="_images/n014n021-1.png" src="_images/n014n021-1.png" />
+<img alt="_images/n014n021ecdf-1.png" src="_images/n014n021ecdf-1.png" />
+<p>This is just incredibly borderline. There is a very strong difference on the left
+side but it falls fractionally short of the required confidence level. Note how
+this also illustrates the bias in favour of the null hypothesis that the two
+samples are from the same distribution.</p>
+<p>Notice that of the false positives, only the one between
+<code class="docutils literal"><span class="pre">dat/normal_0_1.2.tsv</span></code> and <code class="docutils literal"><span class="pre">dat/normal_0_2.tsv</span></code> happens with a dataset
+containing more than 256 samples. In this test with 8192 samples against 256,
+the critical value is 0.0855 and the test statistic scrapes by underneath at
+0.08288.</p>
+<p>In the case for two samples of size 8192, the critical value is a very
+discriminating 0.02118.</p>
+<p>In total there are ten false positives in 75 tests, a poor showing.</p>
+<p>The lesson is that false positives are more common and especially with small
+datasets. When using the Kolmogorov-Smirnov test in production systems, tend to
+use higher confidence levels when larger datasets cannot be available.</p>
+</div>
+</div>
+<div class="section" id="http-twitter-com-response-times">
+<h3><a class="reference external" href="http://twitter.com">http://twitter.com</a> Response Times<a class="headerlink" href="#http-twitter-com-response-times" title="Permalink to this headline">¶</a></h3>
+<p>Less artificially, and more representative of metrics in software operations and
+monitoring, are datasets of HTTP server response times. Metrics which behave
+like response time are very typical and not easy to analyse with usual
+statistical technology.</p>
+<p><a class="reference external" href="https://httpd.apache.org/docs/2.2/programs/ab.html">Apache Bench</a> is a commandline URL loadtesting tool that can be used to
+collect sample datasets of HTTP request times. A dataset of service times for
+<code class="docutils literal"><span class="pre">http://twitter.com</span></code> was collected using:</p>
+<div class="highlight-bash"><div class="highlight"><pre>ab -n <span class="m">8192</span> -c <span class="m">1</span> -v <span class="m">3</span> -g http.tsv http://twitter.com/
+</pre></div>
+</div>
+<p>The test actually ships 3.36MB of redirect headers since <code class="docutils literal"><span class="pre">http://twitter.com</span></code>
+is a 301 Moved Permanently redirect to <code class="docutils literal"><span class="pre">https://twitter.com</span></code> but the dataset
+is still useful as it exhibits the behaviour of HTTP endpoint responses anyway.</p>
+<p>The options in the call specify:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">-c</span> <span class="pre">1</span></code>: Use test concurrency of one outstanding request to throttle the
+testing.</li>
+<li><code class="docutils literal"><span class="pre">-v</span> <span class="pre">3</span></code>: Log at high verbosity level to show individual request data.</li>
+<li><code class="docutils literal"><span class="pre">-g</span> <span class="pre">http.tsv</span></code>: Output a TSV summary to <code class="docutils literal"><span class="pre">http.tsv</span></code>. The <code class="docutils literal"><span class="pre">-g</span></code> stands for
+Gnuplot which the output file is organised to support particularly.</li>
+</ul>
+<p>A timeout or significant failure can trash the test completely, so it is more
+robust to collect data in blocks of 256 requests and combine the results. This
+was done in collect some supplementary data for comparison purposes and is
+available as <code class="docutils literal"><span class="pre">dat/http.1.tsv</span></code> through <code class="docutils literal"><span class="pre">dat/http.4.tsv</span></code> in the
+<a class="reference external" href="https://github.com/daithiocrualaoich/kolmogorov_smirnov">Github repository</a>.
+The primary dataset is <code class="docutils literal"><span class="pre">dat/http.tsv</span></code>.</p>
+<div class="highlight-bash"><div class="highlight"><pre><span class="k">for</span> i in <span class="o">{</span>1..32<span class="o">}</span>
+<span class="k">do</span>
+  ab -n <span class="m">256</span> -c <span class="m">1</span> -v <span class="m">3</span> -g http.<span class="nv">$i</span>.tsv http://twitter.com/
+<span class="k">done</span>
+</pre></div>
+</div>
+<p>Aside: The trailing <code class="docutils literal"><span class="pre">/</span></code> in the target URL is required in the <code class="docutils literal"><span class="pre">ab</span></code> command or
+it fails with an invalid URL error.</p>
+<p>The result data file from Apache Bench has the following
+<a class="reference external" href="http://stackoverflow.com/a/6143973">schema</a>:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">starttime</span></code>: A human friendly time representation of the request start.</li>
+<li><code class="docutils literal"><span class="pre">seconds</span></code>: The Unix epoch seconds timestamp of <code class="docutils literal"><span class="pre">starttime</span></code>. This is the
+number of regular, but not leap, seconds since 1 January 1970. Trivia Fact:
+this is why Unix timestamps line up, against sane expectations, on minute
+boundaries when divided by 60.</li>
+<li><code class="docutils literal"><span class="pre">ctime</span></code>: Connection time to the server in milliseconds.</li>
+<li><code class="docutils literal"><span class="pre">dtime</span></code>: Processing time on the server in milliseconds. The <code class="docutils literal"><span class="pre">d</span></code> may stand
+for &#8220;duration&#8221; or it may not.</li>
+<li><code class="docutils literal"><span class="pre">ttime</span></code>: Total time in milliseconds, <code class="docutils literal"><span class="pre">ctime</span> <span class="pre">+</span> <span class="pre">dtime</span></code>.</li>
+<li><code class="docutils literal"><span class="pre">wait</span></code>: Waiting time in milliseconds. This is not included in <code class="docutils literal"><span class="pre">ttime</span></code>, it
+appears from the data.</li>
+</ul>
+<p>If you want to use the generated data file as it was intended for processing
+with Gnuplot, then see this
+<a class="reference external" href="http://www.bradlanders.com/2013/04/15/apache-bench-and-gnuplot-youre-probably-doing-it-wrong">article</a>.</p>
+<p>The output data is sorted by Apache Bench according to <code class="docutils literal"><span class="pre">ttime</span></code>, meaning
+shorter requests come first in the output. The purposes here better appreciate
+data sorted by the <code class="docutils literal"><span class="pre">seconds</span></code> timestamp, particularly to plot the timeseries
+data in the order the requests were issued.</p>
+<p>And because nobody is much interested in when exactly this dataset was made, the
+<code class="docutils literal"><span class="pre">starttime</span></code> and <code class="docutils literal"><span class="pre">seconds</span></code> fields are dropped from the final data. The
+following <a class="reference external" href="http://unix.stackexchange.com/a/71949">crafty piece of Awk</a> does
+the header-retaining sort and column projection.</p>
+<div class="highlight-bash"><div class="highlight"><pre>cat http.tsv <span class="p">|</span><span class="se">\</span>
+  awk <span class="s1">&#39;NR == 1; NR &gt; 1 {print $0 | &quot;sort&quot;}&#39;</span> <span class="p">|</span><span class="se">\</span>
+  cut -f3- <span class="se">\</span>
+  &gt; http.tsv.out
+</pre></div>
+</div>
+<p>All the response time datasets in the Github repository have been processed like
+this.</p>
+<p>To transform the headered multi-column data files into a format suitable for
+input to <code class="docutils literal"><span class="pre">ks_i64</span></code> use the following example as a guide:</p>
+<div class="highlight-bash"><div class="highlight"><pre>tail -n +2 http.tsv <span class="p">|</span><span class="se">\</span>
+  cut -f3 <span class="se">\</span>
+  &gt; http_ttime.tsv
+</pre></div>
+</div>
+<p>Then to run the test:</p>
+<div class="highlight-bash"><div class="highlight"><pre>cargo run -q --bin test_t64 dat/http_ttime.tsv dat/http_ttime.1.tsv
+</pre></div>
+</div>
+<p>The timeseries plot shows a common Internet story of outliers, failure cases and
+disgrace.</p>
+<img alt="_images/http-timeseries-1.png" src="_images/http-timeseries-1.png" />
+<p>The density is highly peaked but includes fast failure weight and a long light
+tail. This is not straightforward to parametrise with the common statistical
+distributions that are fruitful to work with and demonstrates the significant
+utility of the Kolmogorov-Smirnov test.</p>
+<img alt="_images/http-density-1.png" src="_images/http-density-1.png" />
+<p>Note there is a much larger horizontal axis range in this graph. This has the
+effect of compressing the visual area under the graph relative to the earlier
+dataset density plots.</p>
+<p>Don&#8217;t let this trick you. The y axis values are smaller than in the other graphs
+but there is far more horizontal axis support to compensate. The definition of a
+probability density means the area under the graph in all the density plots must
+sum to the same.</p>
+<div class="section" id="id3">
+<h4>Results<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h4>
+<p>Restricting attention to just the total time value, there are ten test dataset
+combinations all of which are false negatives save for the comparison between
+<code class="docutils literal"><span class="pre">dat/http_ttime.1.tsv</span></code> <code class="docutils literal"><span class="pre">dat/http_ttime.4.tsv</span></code></p>
+<div class="highlight-bash"><div class="highlight"><pre><span class="k">for</span> I in dat/http_ttime.*
+<span class="k">do</span>
+    <span class="k">for</span> J in dat/http_ttime.*
+    <span class="k">do</span>
+        <span class="k">if</span> <span class="o">[[</span> <span class="s2">&quot;</span><span class="nv">$I</span><span class="s2">&quot;</span> &lt; <span class="s2">&quot;</span><span class="nv">$J</span><span class="s2">&quot;</span> <span class="o">]]</span>
+        <span class="k">then</span>
+            <span class="nb">echo</span> <span class="nv">$I</span> <span class="nv">$J</span>
+            cargo run -q --bin ks_f64 <span class="nv">$I</span> <span class="nv">$J</span>
+            <span class="nb">echo</span>
+<span class="nb">            echo</span>
+<span class="nb">        </span><span class="k">fi</span>
+    <span class="k">done</span>
+<span class="k">done</span>
+</pre></div>
+</div>
+<p>The only accepted test returned the following test information:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ cargo run -q --bin ks_f64 dat/http_ttime.1.tsv dat/http_ttime.4.tsv
+Samples are from the same distribution.
+test statistic = 0.0703125
+critical value = 0.11867932230234146
+reject probability = 0.4633497077833878
+</pre></div>
+</div>
+<p>Here is the timeseries and density plot for <code class="docutils literal"><span class="pre">ttime</span></code> in the
+<code class="docutils literal"><span class="pre">dat/http_ttime.1.tsv</span></code> dataset for comparison to the <code class="docutils literal"><span class="pre">dat/http_ttime.tsv</span></code>
+plots above.</p>
+<img alt="_images/http1-timeseries-1.png" src="_images/http1-timeseries-1.png" />
+<img alt="_images/http1-density-1.png" src="_images/http1-density-1.png" />
+<p>There is some similarity to the observations in <code class="docutils literal"><span class="pre">dat/http_ttime.tsv</span></code> but there
+is a far shorter tail here.</p>
+<p>In fact, the datasets are all very different from each other. Here are the other
+density plots.</p>
+<p><code class="docutils literal"><span class="pre">dat/http_ttime.2.tsv</span></code> exhibits a spike of failures which are of short
+duration and contribute large weight on the left of the graph.</p>
+<img alt="_images/http2-density-1.png" src="_images/http2-density-1.png" />
+<p>By contrast <code class="docutils literal"><span class="pre">dat/http_ttime.3.tsv</span></code> has no fast failures or slow outliners and
+the weight is packed around .9s to 1s.</p>
+<img alt="_images/http3-density-1.png" src="_images/http3-density-1.png" />
+<p><code class="docutils literal"><span class="pre">dat/http_ttime.4.tsv</span></code> has a long tail for an outlier, likely to be request
+timeouts.</p>
+<img alt="_images/http4-density-1.png" src="_images/http4-density-1.png" />
+<p>By inspection of the empirical cumulative density functions, the only test with
+a possible chance of accepting the null hypothesis was that between
+<code class="docutils literal"><span class="pre">dat/http_ttime.tsv</span></code> and <code class="docutils literal"><span class="pre">dat/http_ttime.4.tsv</span></code>. This is the comparison with
+the smallest test statistic from the rejected cases.</p>
+<div class="highlight-python"><div class="highlight"><pre>$ cargo run -q --bin ks_f64 dat/http_ttime.4.tsv dat/http_ttime.tsv
+Samples are from different distributions.
+test statistic = 0.1368408203125
+critical value = 0.08550809323787689
+reject probability = 0.9998422018223175
+</pre></div>
+</div>
+<p>Even still, this is not a close match. The empirical cumulative density function
+plots show very different profiles on the error request times to the left of the
+diagram.</p>
+<img alt="_images/httphttp4ecdf-1.png" src="_images/httphttp4ecdf-1.png" />
+<p>As for the passing match, it turns out that <code class="docutils literal"><span class="pre">dat/http_ttime.1.tsv</span></code> and
+<code class="docutils literal"><span class="pre">dat/http_ttime.4.tsv</span></code> are indeed quite similar. This would be more apparent
+but for the outlier in <code class="docutils literal"><span class="pre">dat/http_ttime.4.tsv</span></code>. Given that the
+Kolmogorov-Smirnov test is not sensitive at the tails, this does not contribute
+evidence to reject the null hypothesis.</p>
+<img alt="_images/http1http4ecdf-1.png" src="_images/http1http4ecdf-1.png" />
+<p>In conclusion, the captured HTTP response time datasets exhibit features which
+make them likely to actually be from different distributions, some with and
+without long outliers, fast errors.</p>
+</div>
+</div>
+<div class="section" id="twitter-inc-stock-price">
+<h3>Twitter, Inc. Stock Price<a class="headerlink" href="#twitter-inc-stock-price" title="Permalink to this headline">¶</a></h3>
+<p>The final dataset is a historical stock market sample. Collect a fortnight of
+minute granularity stock price data from Google Finance using:</p>
+<div class="highlight-bash"><div class="highlight"><pre>wget -O twtr.dat <span class="s1">&#39;http://www.google.com/finance/getprices?i=60&amp;p=14d&amp;f=d,c,h,l,o,v&amp;q=TWTR&#39;</span>
+</pre></div>
+</div>
+<p>The HTTP parameters in the call specify:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">i=60</span></code>: This is the sample interval in seconds, i.e. get per-minute data.
+The minimum sample interval available is sixty seconds.</li>
+<li><code class="docutils literal"><span class="pre">p=14d</span></code>: Return data for the previous fourteen days.</li>
+<li><code class="docutils literal"><span class="pre">f=d,c,h,l,o,v</span></code>: Include columns in the result for sample interval start
+date, closing price, high price value, low price value, opening price, and
+trade count, i.e. volume.</li>
+<li><code class="docutils literal"><span class="pre">q=TWTR</span></code>: Query data for the TWTR stock symbol.</li>
+</ul>
+<p>The response includes a header block before listing the sample data which looks
+like the following:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">a1448289000</span><span class="p">,</span><span class="mf">26.11</span><span class="p">,</span><span class="mf">26.11</span><span class="p">,</span><span class="mf">26.11</span><span class="p">,</span><span class="mf">26.11</span><span class="p">,</span><span class="mi">500</span>
+<span class="mi">1</span><span class="p">,</span><span class="mf">26.17</span><span class="p">,</span><span class="mf">26.17</span><span class="p">,</span><span class="mf">26.12</span><span class="p">,</span><span class="mf">26.13</span><span class="p">,</span><span class="mi">700</span>
+<span class="mi">2</span><span class="p">,</span><span class="mf">26.25</span><span class="p">,</span><span class="mf">26.25</span><span class="p">,</span><span class="mf">26.14</span><span class="p">,</span><span class="mf">26.14</span><span class="p">,</span><span class="mi">191266</span>
+<span class="mi">3</span><span class="p">,</span><span class="mf">26.14</span><span class="p">,</span><span class="mf">26.27</span><span class="p">,</span><span class="mf">26.13</span><span class="p">,</span><span class="mf">26.21</span><span class="p">,</span><span class="mi">89148</span>
+<span class="mi">4</span><span class="p">,</span><span class="mf">26.01</span><span class="p">,</span><span class="mf">26.15</span><span class="p">,</span><span class="mf">26.01</span><span class="p">,</span><span class="mf">26.135</span><span class="p">,</span><span class="mi">36535</span>
+</pre></div>
+</div>
+<p>Lines starting with an <code class="docutils literal"><span class="pre">a</span></code> character include an absolute timestamp value.
+Otherwise, the timestamp field value is an offset and has to be added to the
+timestamp value in the last previous absolute timestamp line to get the
+absolute timestamp for the given line.</p>
+<p>This Awk script truncates the header block and folds the timestamp offsets into
+absolute timestamp values.</p>
+<div class="highlight-bash"><div class="highlight"><pre>tail +8 twtr.dat <span class="p">|</span> awk <span class="s1">&#39;</span>
+<span class="s1">  BEGIN {</span>
+<span class="s1">    FS=&quot;,&quot;; OFS=&quot;\t&quot;</span>
+<span class="s1">    print &quot;timestamp&quot;,&quot;close&quot;,&quot;high&quot;,&quot;low&quot;,&quot;open&quot;,&quot;volume&quot;</span>
+<span class="s1">  } {</span>
+<span class="s1">    if (substr($1,0,1) == &quot;a&quot;) {</span>
+<span class="s1">      $1 = substr($1,2)</span>
+<span class="s1">      base = 0 + $1</span>
+<span class="s1">    } else {</span>
+<span class="s1">      $1 = base + (60 * $1)</span>
+<span class="s1">    }</span>
+
+<span class="s1">    print $0</span>
+<span class="s1">  }&#39;</span> &gt; twtr.tsv
+</pre></div>
+</div>
+<p>The output TSV file is provided as <code class="docutils literal"><span class="pre">dat/twtr.tsv</span></code> in the
+<a class="reference external" href="https://github.com/daithiocrualaoich/kolmogorov_smirnov">Github repository</a>.</p>
+<p>A supplementary dataset consisting of a single day was collected for comparison
+purposes and is available as <code class="docutils literal"><span class="pre">dat/twtr.1.tsv</span></code>. It was processed in the same
+manner as <code class="docutils literal"><span class="pre">dat/twtr.tsv</span></code>. The collection command was:</p>
+<div class="highlight-bash"><div class="highlight"><pre>wget -O twtr.1.dat <span class="s1">&#39;http://www.google.com/finance/getprices?i=60&amp;p=1d&amp;f=d,c,h,l,o,v&amp;q=TWTR&#39;</span>
+</pre></div>
+</div>
+<p>Trading hours on the New York Stock Exchange are weekdays 9.30am to 4pm. This
+results in long horizontal line segments for missing values in the timeseries
+plot for interval opening prices, corresponding to the overnight and weekend
+market close periods.</p>
+<img alt="_images/twtr-open-timeseries-1.png" src="_images/twtr-open-timeseries-1.png" />
+<p>The following is the minutely opening price density plot.</p>
+<img alt="_images/twtr-open-density-1.png" src="_images/twtr-open-density-1.png" />
+<p>The missing value graph artifact is more pronounced in the minutely trading
+volume timeseries. The lines joining the trading day regions should be
+disregarded.</p>
+<img alt="_images/twtr-volume-timeseries-1.png" src="_images/twtr-volume-timeseries-1.png" />
+<p>Finally, the trading volume density plot is very structured, congregating near
+the 17,000 trades/minute rate.</p>
+<img alt="_images/twtr-volume-density-1.png" src="_images/twtr-volume-density-1.png" />
+<div class="section" id="id5">
+<h4>Results<a class="headerlink" href="#id5" title="Permalink to this headline">¶</a></h4>
+<p>The reader is invited to analyse the share price as an exercise. Let me know
+from your expensive yacht if you figure it out and make a fortune.</p>
+</div>
+</div>
+</div>
+<div class="section" id="a-diversion-in-quickcheck">
+<h2>A Diversion In QuickCheck<a class="headerlink" href="#a-diversion-in-quickcheck" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference external" href="https://en.wikipedia.org/wiki/QuickCheck">QuickCheck</a> is crazy amounts of fun writing tests and a great way to become
+comfortable in a new language.</p>
+<p>The idea in QuickCheck is to write tests as properties of inputs rather than
+specific test cases. So, for instance, rather than checking whether a given
+pair of samples have a determined maximum empirical cumulative distribution
+function distance, instead a generic property is verified. This property can be
+as simple as the distance is between zero and one for any pair of input samples
+or as constrictive as the programmer is able to create.</p>
+<p>This form of test construction means QuickCheck can probabilistically check the
+property over a huge number of test case instances and establish a much greater
+confidence of correctness than a single individual test instance could.</p>
+<p>It can be harder too, yes. Writing properties that tightly specify the desired
+behaviour is difficult but starting with properties that very loosely constrain
+the software behaviour is often helpful, facilitating an evolution into more
+sharply binding criteria.</p>
+<p>For a tutorial introduction to QuickCheck, John Hughes has a great
+<a class="reference external" href="https://www.youtube.com/watch?v=zi0rHwfiX1Q">introduction talk</a>.</p>
+<p>There is an implementation of <a class="reference external" href="https://github.com/BurntSushi/quickcheck">QuickCheck for Rust</a> and the tests for the
+Kolmogorov-Smirnov Rust library have been implemented using it. See the
+<a class="reference external" href="https://github.com/daithiocrualaoich/kolmogorov_smirnov">Github repository</a>
+for examples of how to QuickCheck in Rust.</p>
+<p>Here is a toy example of a QuickCheck property to test an integer doubling
+function.</p>
+<div class="highlight-rust"><div class="highlight"><pre><span class="k">extern</span><span class="w"> </span><span class="n">crate</span><span class="w"> </span><span class="n">quickcheck</span><span class="p">;</span><span class="w"></span>
+<span class="kn">use</span><span class="w"> </span><span class="bp">self</span><span class="o">::</span><span class="n">quickcheck</span><span class="o">::</span><span class="n">quickcheck</span><span class="p">;</span><span class="w"></span>
+
+<span class="k">fn</span><span class="w"> </span><span class="n">double</span><span class="p">(</span><span class="n">n</span><span class="o">:</span><span class="w"> </span><span class="kt">u32</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="kt">u32</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="mi">2</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">n</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="cp">#[test]</span><span class="w"></span>
+<span class="k">fn</span><span class="w"> </span><span class="n">test_double_n_is_greater_than_n</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="n">prop</span><span class="p">(</span><span class="n">n</span><span class="o">:</span><span class="w"> </span><span class="kt">u32</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">double</span><span class="p">(</span><span class="n">n</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">n</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">    </span><span class="n">quickcheck</span><span class="p">(</span><span class="n">prop</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="k">fn</span><span class="p">(</span><span class="kt">u32</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="kt">bool</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>This test is broken and QuickCheck makes short(I almost wrote &#8216;quick&#8217;!) work of
+letting us know that we have been silly.</p>
+<div class="highlight-python"><div class="highlight"><pre>test tests::test_double_n_is_greater_than_n ... FAILED
+
+failures:
+
+---- tests::test_double_n_is_greater_than_n stdout ----
+    thread &#39;tests::test_double_n_is_greater_than_n&#39; panicked at &#39;[quickcheck] TEST FAILED. Arguments: (0)&#39;, /root/.cargo/registry/src/github.com-0a35038f75765ae4/quickcheck-0.2.24/src/tester.rs:113
+</pre></div>
+</div>
+<p>The last log line includes the <code class="docutils literal"><span class="pre">u32</span></code> value that failed the test, i.e. zero.
+Correct practice is to now create a non-probabilistic test case that tests this
+specific value. This protects the codebase from regressions in the future.</p>
+<p>The problem in the example is that the property is not actually valid for the
+<code class="docutils literal"><span class="pre">double</span></code> function because double zero is not actually greater than zero. So
+let&#8217;s fix the test.</p>
+<div class="highlight-rust"><div class="highlight"><pre><span class="cp">#[test]</span><span class="w"></span>
+<span class="k">fn</span><span class="w"> </span><span class="n">test_double_n_is_geq_n</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="n">prop</span><span class="p">(</span><span class="n">n</span><span class="o">:</span><span class="w"> </span><span class="kt">u32</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">double</span><span class="p">(</span><span class="n">n</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">n</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">    </span><span class="n">quickcheck</span><span class="p">(</span><span class="n">prop</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="k">fn</span><span class="p">(</span><span class="kt">u32</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="kt">bool</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>Note also how QuickCheck produced a minimal test violation, there are no smaller
+values of <code class="docutils literal"><span class="pre">u32</span></code> that violated the test. This is not an accident, QuickCheck
+libraries often include features for shrinking test failures to minimal
+examples. When a test fails, QuickCheck will often rerun it searching
+successively on smaller instances of the test arguments to determine the
+smallest violating test case.</p>
+<p>The function is still broken, by the way, because it overflows for large input
+values. The Rust QuickCheck doesn&#8217;t catch this problem because the
+<code class="docutils literal"><span class="pre">QuickCheck::quickcheck</span></code> convenience runner configures the tester to produce
+random data between zero and one hundred, not in the range where the overflow
+will be evident. For this reason, you should not use the convenience runner in
+testing. Instead, configure the <code class="docutils literal"><span class="pre">QuickCheck</span></code> manually with as large a random
+range as you can.</p>
+<div class="highlight-rust"><div class="highlight"><pre><span class="k">extern</span><span class="w"> </span><span class="n">crate</span><span class="w"> </span><span class="n">rand</span><span class="p">;</span><span class="w"></span>
+<span class="kn">use</span><span class="w"> </span><span class="bp">self</span><span class="o">::</span><span class="n">quickcheck</span><span class="o">::</span><span class="p">{</span><span class="n">QuickCheck</span><span class="p">,</span><span class="w"> </span><span class="n">StdGen</span><span class="p">,</span><span class="w"> </span><span class="n">Testable</span><span class="p">};</span><span class="w"></span>
+<span class="kn">use</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">usize</span><span class="p">;</span><span class="w"></span>
+
+<span class="k">fn</span><span class="w"> </span><span class="n">check</span><span class="o">&lt;</span><span class="n">A</span><span class="o">:</span><span class="w"> </span><span class="n">Testable</span><span class="o">&gt;</span><span class="p">(</span><span class="n">f</span><span class="o">:</span><span class="w"> </span><span class="n">A</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">gen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">StdGen</span><span class="o">::</span><span class="n">new</span><span class="p">(</span><span class="n">rand</span><span class="o">::</span><span class="n">thread_rng</span><span class="p">(),</span><span class="w"> </span><span class="n">usize</span><span class="o">::</span><span class="n">MAX</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">QuickCheck</span><span class="o">::</span><span class="n">new</span><span class="p">().</span><span class="n">gen</span><span class="p">(</span><span class="n">gen</span><span class="p">).</span><span class="n">quickcheck</span><span class="p">(</span><span class="n">f</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="cp">#[test]</span><span class="w"></span>
+<span class="k">fn</span><span class="w"> </span><span class="n">test_double_n_is_geq_n</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="n">prop</span><span class="p">(</span><span class="n">n</span><span class="o">:</span><span class="w"> </span><span class="kt">u32</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">double</span><span class="p">(</span><span class="n">n</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">n</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">    </span><span class="n">check</span><span class="p">(</span><span class="n">prop</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="k">fn</span><span class="p">(</span><span class="kt">u32</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="kt">bool</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>This will break the test with an overflow panic. This is correct and the
+<code class="docutils literal"><span class="pre">double</span></code> function should be reimplemented to do something about handling
+overflow properly.</p>
+<p>A warning, though, if you are testing <code class="docutils literal"><span class="pre">vec</span></code> or string types. The number of
+elements in the randomly generated <code class="docutils literal"><span class="pre">vec</span></code> or equivalently, the length of the
+generated string will be between zero and the size in the <code class="docutils literal"><span class="pre">StdGen</span></code> configured.
+There is the potential in this to create unnecessarily huge <code class="docutils literal"><span class="pre">vec</span></code> and string
+values. See the example of <code class="docutils literal"><span class="pre">NonEmptyVec</span></code> below for a technique to limit the
+size of a randomly generated <code class="docutils literal"><span class="pre">vec</span></code> or string while still using <code class="docutils literal"><span class="pre">StdGen</span></code> with
+a large range.</p>
+<p>Unfortunately, you are out of luck on a 32-bit machine where the <code class="docutils literal"><span class="pre">usize::MAX</span></code>
+will only get you to sampling correctly in <code class="docutils literal"><span class="pre">u32</span></code>. You will need to upgrade to
+a new machine before you can test <code class="docutils literal"><span class="pre">u64</span></code>, sorry.</p>
+<p>By way of example, it is actually more convenient to include known failure cases
+like <code class="docutils literal"><span class="pre">u32::max_value()</span></code> in the QuickCheck test function rather than in a
+separate traditional test case function. So, when the QuickCheck fails for the
+overflow bug, add the test case like follows instead of as a new function:</p>
+<div class="highlight-rust"><div class="highlight"><pre><span class="cp">#[test]</span><span class="w"></span>
+<span class="k">fn</span><span class="w"> </span><span class="n">test_double_n_is_geq_n</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="n">prop</span><span class="p">(</span><span class="n">n</span><span class="o">:</span><span class="w"> </span><span class="kt">u32</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">double</span><span class="p">(</span><span class="n">n</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">n</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">    </span><span class="n">assert</span><span class="o">!</span><span class="p">(</span><span class="n">prop</span><span class="p">(</span><span class="kt">u32</span><span class="o">::</span><span class="n">max_value</span><span class="p">()));</span><span class="w"></span>
+<span class="w">    </span><span class="n">quickcheck</span><span class="p">(</span><span class="n">prop</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="k">fn</span><span class="p">(</span><span class="kt">u32</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="kt">bool</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>Sometimes the property to test is not valid on some test arguments, i.e. the
+property is useful to verify but there are certain combinations of
+probabilistically generated inputs that should be excluded.</p>
+<p>The Rust QuickCheck library supports this with <code class="docutils literal"><span class="pre">TestResult</span></code>. Suppose that
+instead of writing the <code class="docutils literal"><span class="pre">double</span></code> test property correctly, we wanted to just
+exclude the failing cases instead. This might be a practical thing to do in
+a real scenario and we can rewrite the test as follows:</p>
+<div class="highlight-rust"><div class="highlight"><pre><span class="kn">use</span><span class="w"> </span><span class="bp">self</span><span class="o">::</span><span class="n">quickcheck</span><span class="o">::</span><span class="n">TestResult</span><span class="p">;</span><span class="w"></span>
+
+<span class="cp">#[test]</span><span class="w"></span>
+<span class="k">fn</span><span class="w"> </span><span class="n">test_double_n_is_greater_than_n_if_n_is_greater_than_1</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="n">prop</span><span class="p">(</span><span class="n">n</span><span class="o">:</span><span class="w"> </span><span class="kt">u32</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">TestResult</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">TestResult</span><span class="o">::</span><span class="n">discard</span><span class="p">()</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">actual</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">double</span><span class="p">(</span><span class="n">n</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">        </span><span class="n">TestResult</span><span class="o">::</span><span class="n">from_bool</span><span class="p">(</span><span class="n">actual</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">n</span><span class="p">)</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">    </span><span class="n">quickcheck</span><span class="p">(</span><span class="n">prop</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="k">fn</span><span class="p">(</span><span class="kt">u32</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">TestResult</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>Here, the cases where the property legitimately doesn&#8217;t hold are excluded by
+returning``TestResult::discard()``. This causes QuickCheck to retry the test
+with the next randomly generated value instead.</p>
+<p>Note also that the function return type is now <code class="docutils literal"><span class="pre">TestResult</span></code> and that
+<code class="docutils literal"><span class="pre">TestResult::from_bool</span></code> is needed for the test condition.</p>
+<p>An alternative approach is to create a wrapper type in the test code which only
+permits valid input and to rewrite the tests to take this type as the
+probabilistically generated input instead.</p>
+<p>For example, suppose you want to ensure that QuickCheck only generates positive
+integers for use in your property verification. You add a wrapper type
+<code class="docutils literal"><span class="pre">PositiveInteger</span></code> and now in order for QuickCheck to work, you have to
+implement the <code class="docutils literal"><span class="pre">Arbitrary</span></code> trait for this new type.</p>
+<p>The minimum requirement for an <code class="docutils literal"><span class="pre">Arbitrary</span></code> implementation is a function called
+<code class="docutils literal"><span class="pre">arbitrary</span></code> taking a <code class="docutils literal"><span class="pre">Gen</span></code> random generator and producing a random
+<code class="docutils literal"><span class="pre">PositiveInteger</span></code>. New implementations should always leverage existing
+<code class="docutils literal"><span class="pre">Arbitrary</span></code> implementations, and so <code class="docutils literal"><span class="pre">PositiveInteger</span></code> generates a random
+<code class="docutils literal"><span class="pre">u64</span></code> using <code class="docutils literal"><span class="pre">u64::arbitrary()</span></code> and constrains it to be greater than zero.</p>
+<div class="highlight-rust"><div class="highlight"><pre><span class="k">extern</span><span class="w"> </span><span class="n">crate</span><span class="w"> </span><span class="n">quickcheck</span><span class="p">;</span><span class="w"></span>
+<span class="kn">use</span><span class="w"> </span><span class="bp">self</span><span class="o">::</span><span class="n">quickcheck</span><span class="o">::</span><span class="p">{</span><span class="n">Arbitrary</span><span class="p">,</span><span class="w"> </span><span class="n">Gen</span><span class="p">};</span><span class="w"></span>
+<span class="kn">use</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">cmp</span><span class="p">;</span><span class="w"></span>
+
+<span class="cp">#[derive(Clone, Debug)]</span><span class="w"></span>
+<span class="k">struct</span><span class="w"> </span><span class="n">PositiveInteger</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">val</span><span class="o">:</span><span class="w"> </span><span class="kt">u64</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">Arbitrary</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">PositiveInteger</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="n">arbitrary</span><span class="o">&lt;</span><span class="n">G</span><span class="o">:</span><span class="w"> </span><span class="n">Gen</span><span class="o">&gt;</span><span class="p">(</span><span class="n">g</span><span class="o">:</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">G</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">PositiveInteger</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">val</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cmp</span><span class="o">::</span><span class="n">max</span><span class="p">(</span><span class="kt">u64</span><span class="o">::</span><span class="n">arbitrary</span><span class="p">(</span><span class="n">g</span><span class="p">),</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="n">PositiveInteger</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">value</span><span class="o">:</span><span class="w"> </span><span class="n">val</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="n">shrink</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">Box</span><span class="o">&lt;</span><span class="nb">Iterator</span><span class="o">&lt;</span><span class="n">Item</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PositiveInteger</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">shrunk</span><span class="o">:</span><span class="w"> </span><span class="n">Box</span><span class="o">&lt;</span><span class="nb">Iterator</span><span class="o">&lt;</span><span class="n">Item</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kt">u64</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">value</span><span class="p">.</span><span class="n">shrink</span><span class="p">();</span><span class="w"></span>
+<span class="w">        </span><span class="n">Box</span><span class="o">::</span><span class="n">new</span><span class="p">(</span><span class="n">shrunk</span><span class="p">.</span><span class="n">filter</span><span class="p">(</span><span class="o">|&amp;</span><span class="n">v</span><span class="o">|</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">).</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="n">v</span><span class="o">|</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">PositiveInteger</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">value</span><span class="o">:</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">        </span><span class="p">}))</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>Note also the implementation of <code class="docutils literal"><span class="pre">shrink()</span></code> here, again in terms of an
+existing <code class="docutils literal"><span class="pre">u64::shrink()</span></code>. This method is optional and unless implemented
+QuickCheck will not minimise property violations for the new wrapper type.</p>
+<p>Use <code class="docutils literal"><span class="pre">PositiveInteger</span></code> like follows:</p>
+<div class="highlight-rust"><div class="highlight"><pre><span class="kn">use</span><span class="w"> </span><span class="bp">self</span><span class="o">::</span><span class="n">quickcheck</span><span class="o">::</span><span class="n">quickcheck</span><span class="p">;</span><span class="w"></span>
+
+<span class="k">fn</span><span class="w"> </span><span class="n">square</span><span class="p">(</span><span class="n">n</span><span class="o">:</span><span class="w"> </span><span class="kt">u64</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="kt">u64</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">n</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">n</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="cp">#[test]</span><span class="w"></span>
+<span class="k">fn</span><span class="w"> </span><span class="n">test_square_n_for_positive_n_is_geq_1</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="n">prop</span><span class="p">(</span><span class="n">n</span><span class="o">:</span><span class="w"> </span><span class="n">PositiveInteger</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">square</span><span class="p">(</span><span class="n">n</span><span class="p">.</span><span class="n">value</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">1</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">    </span><span class="n">quickcheck</span><span class="p">(</span><span class="n">prop</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="k">fn</span><span class="p">(</span><span class="n">PositiveInteger</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="kt">bool</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>There is no need now for <code class="docutils literal"><span class="pre">TestResult::discard()</span></code> to ignore the failure case
+for zero.</p>
+<p>Finally, wrappers can be added for more complicated types too. A commonly
+useful container type generator is <code class="docutils literal"><span class="pre">NonEmptyVec</span></code> which produces a random
+<code class="docutils literal"><span class="pre">vec</span></code> of the parameterised type but excludes the empty <code class="docutils literal"><span class="pre">vec</span></code> case. The
+generic type must itself implement <code class="docutils literal"><span class="pre">Arbitrary</span></code> for this to work.</p>
+<div class="highlight-rust"><div class="highlight"><pre><span class="k">extern</span><span class="w"> </span><span class="n">crate</span><span class="w"> </span><span class="n">quickcheck</span><span class="p">;</span><span class="w"></span>
+<span class="k">extern</span><span class="w"> </span><span class="n">crate</span><span class="w"> </span><span class="n">rand</span><span class="p">;</span><span class="w"></span>
+<span class="kn">use</span><span class="w"> </span><span class="bp">self</span><span class="o">::</span><span class="n">quickcheck</span><span class="o">::</span><span class="p">{</span><span class="n">quickcheck</span><span class="p">,</span><span class="w"> </span><span class="n">Arbitrary</span><span class="p">,</span><span class="w"> </span><span class="n">Gen</span><span class="p">};</span><span class="w"></span>
+<span class="kn">use</span><span class="w"> </span><span class="bp">self</span><span class="o">::</span><span class="n">rand</span><span class="o">::</span><span class="n">Rng</span><span class="p">;</span><span class="w"></span>
+<span class="kn">use</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">cmp</span><span class="p">;</span><span class="w"></span>
+
+<span class="cp">#[derive(Debug, Clone)]</span><span class="w"></span>
+<span class="k">struct</span><span class="w"> </span><span class="n">NonEmptyVec</span><span class="o">&lt;</span><span class="n">A</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">value</span><span class="o">:</span><span class="w"> </span><span class="n">Vec</span><span class="o">&lt;</span><span class="n">A</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">impl</span><span class="o">&lt;</span><span class="n">A</span><span class="o">:</span><span class="w"> </span><span class="n">Arbitrary</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Arbitrary</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">NonEmptyVec</span><span class="o">&lt;</span><span class="n">A</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="n">arbitrary</span><span class="o">&lt;</span><span class="n">G</span><span class="o">:</span><span class="w"> </span><span class="n">Gen</span><span class="o">&gt;</span><span class="p">(</span><span class="n">g</span><span class="o">:</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">G</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">NonEmptyVec</span><span class="o">&lt;</span><span class="n">A</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="c1">// Limit size of generated vec to 1024</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">max</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cmp</span><span class="o">::</span><span class="n">min</span><span class="p">(</span><span class="n">g</span><span class="p">.</span><span class="n">size</span><span class="p">(),</span><span class="w"> </span><span class="mi">1024</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">g</span><span class="p">.</span><span class="n">gen_range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">max</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">vec</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="mf">0.</span><span class="p">.</span><span class="n">size</span><span class="p">).</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="n">_</span><span class="o">|</span><span class="w"> </span><span class="n">A</span><span class="o">::</span><span class="n">arbitrary</span><span class="p">(</span><span class="n">g</span><span class="p">)).</span><span class="n">collect</span><span class="p">();</span><span class="w"></span>
+
+<span class="w">        </span><span class="n">NonEmptyVec</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">value</span><span class="o">:</span><span class="w"> </span><span class="n">vec</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="n">shrink</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">Box</span><span class="o">&lt;</span><span class="nb">Iterator</span><span class="o">&lt;</span><span class="n">Item</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">NonEmptyVec</span><span class="o">&lt;</span><span class="n">A</span><span class="o">&gt;&gt;&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">vec</span><span class="o">:</span><span class="w"> </span><span class="n">Vec</span><span class="o">&lt;</span><span class="n">A</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">value</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">shrunk</span><span class="o">:</span><span class="w"> </span><span class="n">Box</span><span class="o">&lt;</span><span class="nb">Iterator</span><span class="o">&lt;</span><span class="n">Item</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Vec</span><span class="o">&lt;</span><span class="n">A</span><span class="o">&gt;&gt;&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">vec</span><span class="p">.</span><span class="n">shrink</span><span class="p">();</span><span class="w"></span>
+
+<span class="w">        </span><span class="n">Box</span><span class="o">::</span><span class="n">new</span><span class="p">(</span><span class="n">shrunk</span><span class="p">.</span><span class="n">filter</span><span class="p">(</span><span class="o">|</span><span class="n">v</span><span class="o">|</span><span class="w"> </span><span class="n">v</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">).</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="n">v</span><span class="o">|</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">NonEmptyVec</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">value</span><span class="o">:</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">        </span><span class="p">}))</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="cp">#[test]</span><span class="w"></span>
+<span class="k">fn</span><span class="w"> </span><span class="n">test_head_of_sorted_vec_is_smallest</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="n">prop</span><span class="p">(</span><span class="n">vec</span><span class="o">:</span><span class="w"> </span><span class="n">NonEmptyVec</span><span class="o">&lt;</span><span class="kt">u64</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">sorted</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">vec</span><span class="p">.</span><span class="n">value</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span><span class="w"></span>
+<span class="w">        </span><span class="n">sorted</span><span class="p">.</span><span class="n">sort</span><span class="p">();</span><span class="w"></span>
+
+<span class="w">        </span><span class="c1">// NonEmptyVec must have an element.</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">head</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sorted</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span><span class="w"></span>
+
+<span class="w">        </span><span class="n">vec</span><span class="p">.</span><span class="n">value</span><span class="p">.</span><span class="n">iter</span><span class="p">().</span><span class="n">all</span><span class="p">(</span><span class="o">|&amp;</span><span class="n">n</span><span class="o">|</span><span class="w"> </span><span class="n">head</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">n</span><span class="p">)</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">    </span><span class="n">quickcheck</span><span class="p">(</span><span class="n">prop</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="k">fn</span><span class="p">(</span><span class="n">NonEmptyVec</span><span class="o">&lt;</span><span class="kt">u64</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="kt">bool</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="thanks">
+<h2>Thanks<a class="headerlink" href="#thanks" title="Permalink to this headline">¶</a></h2>
+<p>Thank you to Timur Abishev, James Harlow, and Pascal Hartig for kind suggestions
+and errata.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="#">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">The Kolmogorov-Smirnov Test</a><ul>
+<li><a class="reference internal" href="#kolmogorov-smirnov-hypothesis-testing">Kolmogorov-Smirnov Hypothesis Testing</a><ul>
+<li><a class="reference internal" href="#the-test-statistic">The Test Statistic</a></li>
+<li><a class="reference internal" href="#two-sample-test">Two Sample Test</a></li>
+<li><a class="reference internal" href="#discussion">Discussion</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#a-field-manual-for-rust">A Field Manual for Rust</a><ul>
+<li><a class="reference internal" href="#moral-support-for-learning-the-memory-rules">Moral Support for Learning the Memory Rules</a></li>
+<li><a class="reference internal" href="#niche-observations">Niche Observations</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#kolmogorov-smirnov-library">Kolmogorov-Smirnov Library</a></li>
+<li><a class="reference internal" href="#datasets">Datasets</a><ul>
+<li><a class="reference internal" href="#n-0-1">N(0,1)</a><ul>
+<li><a class="reference internal" href="#results">Results</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#http-twitter-com-response-times">http://twitter.com Response Times</a><ul>
+<li><a class="reference internal" href="#id3">Results</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#twitter-inc-stock-price">Twitter, Inc. Stock Price</a><ul>
+<li><a class="reference internal" href="#id5">Results</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#a-diversion-in-quickcheck">A Diversion In QuickCheck</a></li>
+<li><a class="reference internal" href="#thanks">Thanks</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      
+      
+      
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.6</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
