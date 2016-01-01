@@ -1295,3 +1295,9 @@ generic type must itself implement ``Arbitrary`` for this to work.
 
         quickcheck(prop as fn(NonEmptyVec<u64>) -> bool);
     }
+
+
+Thanks
+------
+Thank you to Timur Abishev, James Harlow, and Pascal Hartig for kind suggestions
+and errata.
