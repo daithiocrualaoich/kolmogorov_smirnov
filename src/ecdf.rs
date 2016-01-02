@@ -100,6 +100,29 @@ impl<T: Ord + Clone> Ecdf<T> {
         self.samples[rank - 1].clone()
     }
 
+    /// Calculate a permille for the sample using the Nearest Rank method.
+    ///
+    /// # Panics
+    ///
+    /// The permille requested must be between 1 and 1000 inclusive. In
+    /// particular, there is no 0-permille.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// extern crate kolmogorov_smirnov as ks;
+    ///
+    /// let samples = vec!(9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+    /// let ecdf = ks::Ecdf::new(&samples);
+    /// assert_eq!(ecdf.permille(500), 4);
+    /// ```
+    pub fn permille(&self, p: u16) -> T {
+        assert!(0 < p && p <= 1000);
+
+        let rank = (p as f64 * self.length as f64 / 1000.0).ceil() as usize;
+        self.samples[rank - 1].clone()
+    }
+
     /// Return the minimal element of the samples.
     ///
     /// # Examples
@@ -200,7 +223,63 @@ pub fn percentile<T: Ord + Clone>(samples: &[T], p: u8) -> T {
     let length = samples.len();
     assert!(length > 0);
 
-    let rank = (p as f64 * length as f64 / 100.0).ceil() as usize;
+    let r = (p as f64 * length as f64 / 100.0).ceil() as usize;
+
+    rank(samples, r)
+}
+
+/// Calculate a one-time permille for a given sample using the Nearest Rank
+/// method and Quick Select.
+///
+/// Computational running time of this function is O(n) but does not amortize
+/// across multiple calls like Ecdf<T>::permille. This function should only be
+/// used in the case that a small number of permilles are required for the
+/// sample. Otherwise, Ecdf::new should be used to create a structure that
+/// takes the upfront O(n log n) sort cost but calculates permilles in O(1).
+///
+/// # Panics
+///
+/// The sample set must be non-empty.
+///
+/// The permille requested must be between 1 and 1000 inclusive. In particular,
+/// there is no 0-permille.
+///
+/// # Examples
+///
+/// ```
+/// extern crate kolmogorov_smirnov as ks;
+///
+/// let samples = vec!(9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+/// let permille = ks::permille(&samples, 500);
+/// assert_eq!(permille, 4);
+/// ```
+pub fn permille<T: Ord + Clone>(samples: &[T], p: u16) -> T {
+    assert!(0 < p && p <= 1000);
+
+    let length = samples.len();
+    assert!(length > 0);
+
+    let r = (p as f64 * length as f64 / 1000.0).ceil() as usize;
+
+    rank(samples, r)
+}
+
+/// Calculate a one-time rank for a given sample using Quick Select.
+///
+/// Computational running time of this function is O(n) and does not amortize
+/// across multiple calls. This function should only be used in the case that a
+/// small number of ranks are required for the sample.
+///
+/// # Panics
+///
+/// The sample set must be non-empty.
+///
+/// The rank requested must be between 1 and the sample length inclusive. In
+/// particular, there is no 0-rank.
+fn rank<T: Ord + Clone>(samples: &[T], rank: usize) -> T {
+    let length = samples.len();
+    assert!(length > 0);
+    assert!(0 < rank && rank <= length);
 
     // Quick Select the element at rank.
 
@@ -289,7 +368,7 @@ mod tests {
     use self::quickcheck::{Arbitrary, Gen, QuickCheck, Testable, TestResult, StdGen};
     use std::cmp;
     use std::usize;
-    use super::{Ecdf, ecdf, percentile};
+    use super::{Ecdf, ecdf, percentile, permille};
 
     fn check<A: Testable>(f: A) {
         let g = StdGen::new(rand::thread_rng(), usize::MAX);
@@ -342,6 +421,28 @@ mod tests {
             let shrunk: Box<Iterator<Item = u8>> = self.val.shrink();
 
             Box::new(shrunk.filter(|&v| 0u8 < v && v <= 100u8).map(|v| Percentile { val: v }))
+        }
+    }
+
+    /// Wrapper for generating permille query value data with QuickCheck.
+    ///
+    /// Percentile must be u16 between 1 and 1000 inclusive.
+    #[derive(Debug, Clone)]
+    struct Permille {
+        val: u16,
+    }
+
+    impl Arbitrary for Permille {
+        fn arbitrary<G: Gen>(g: &mut G) -> Permille {
+            let val = g.gen_range(1, 1001) as u16;
+
+            Permille { val: val }
+        }
+
+        fn shrink(&self) -> Box<Iterator<Item = Permille>> {
+            let shrunk: Box<Iterator<Item = u16>> = self.val.shrink();
+
+            Box::new(shrunk.filter(|&v| 0u16 < v && v <= 1000u16).map(|v| Permille { val: v }))
         }
     }
 
@@ -822,6 +923,333 @@ mod tests {
             let multiple_use = Ecdf::new(&xs.vec);
 
             multiple_use.percentile(p.val) == percentile(&xs.vec, p.val)
+        }
+
+        check(prop as fn(Samples, Percentile) -> bool);
+    }
+
+    #[test]
+    #[should_panic(expected="assertion failed: 0 < p && p <= 1000")]
+    fn single_use_permilles_panics_on_zero_permille() {
+        let xs: Vec<u64> = vec![0];
+
+        permille(&xs, 0);
+    }
+
+    #[test]
+    #[should_panic(expected="assertion failed: 0 < p && p <= 1000")]
+    fn single_use_permilles_panics_on_1001_permille() {
+        let xs: Vec<u64> = vec![0];
+
+        permille(&xs, 1001);
+    }
+
+    #[test]
+    #[should_panic(expected="assertion failed: 0 < p && p <= 1000")]
+    fn multiple_use_permilles_panics_on_zero_permille() {
+        let xs: Vec<u64> = vec![0];
+        let ecdf = Ecdf::new(&xs);
+
+        ecdf.permille(0);
+    }
+
+    #[test]
+    #[should_panic(expected="assertion failed: 0 < p && p <= 1000")]
+    fn multiple_use_permilles_panics_on_1001_permille() {
+        let xs: Vec<u64> = vec![0];
+        let ecdf = Ecdf::new(&xs);
+
+        ecdf.permille(1001);
+    }
+
+    #[test]
+    fn single_use_permille_between_samples_min_and_max() {
+        fn prop(xs: Samples, p: Permille) -> bool {
+            let &min = xs.vec.iter().min().unwrap();
+            let &max = xs.vec.iter().max().unwrap();
+
+            let actual = permille(&xs.vec, p.val);
+
+            min <= actual && actual <= max
+        }
+
+        check(prop as fn(Samples, Permille) -> bool);
+    }
+
+    #[test]
+    fn single_use_permille_is_an_increasing_function() {
+        fn prop(xs: Samples, p: Permille) -> bool {
+            let smaller = cmp::max(p.val - 1, 1);
+            let larger = cmp::min(p.val + 1, 1000);
+
+            let actual = permille(&xs.vec, p.val);
+
+            permille(&xs.vec, smaller) <= actual && actual <= permille(&xs.vec, larger)
+        }
+
+        check(prop as fn(Samples, Permille) -> bool);
+    }
+
+    #[test]
+    fn single_use_permille_1000_is_sample_max() {
+        fn prop(xs: Samples) -> bool {
+            let &max = xs.vec.iter().max().unwrap();
+
+            permille(&xs.vec, 1000) == max
+        }
+
+        check(prop as fn(Samples) -> bool);
+    }
+
+    #[test]
+    fn multiple_use_permille_between_samples_min_and_max() {
+        fn prop(xs: Samples, p: Permille) -> bool {
+            let &min = xs.vec.iter().min().unwrap();
+            let &max = xs.vec.iter().max().unwrap();
+
+            let ecdf = Ecdf::new(&xs.vec);
+            let actual = ecdf.permille(p.val);
+
+            min <= actual && actual <= max
+        }
+
+        check(prop as fn(Samples, Permille) -> bool);
+    }
+
+    #[test]
+    fn multiple_use_permille_is_an_increasing_function() {
+        fn prop(xs: Samples, p: Permille) -> bool {
+            let smaller = cmp::max(p.val - 1, 1);
+            let larger = cmp::min(p.val + 1, 1000);
+
+            let ecdf = Ecdf::new(&xs.vec);
+            let actual = ecdf.permille(p.val);
+
+            ecdf.permille(smaller) <= actual && actual <= ecdf.permille(larger)
+        }
+
+        check(prop as fn(Samples, Permille) -> bool);
+    }
+
+    #[test]
+    fn multiple_use_permille_1000_is_sample_max() {
+        fn prop(xs: Samples) -> bool {
+            let &max = xs.vec.iter().max().unwrap();
+            let ecdf = Ecdf::new(&xs.vec);
+
+            ecdf.permille(1000) == max
+        }
+
+        check(prop as fn(Samples) -> bool);
+    }
+
+    #[test]
+    fn single_use_ecdf_followed_by_single_use_permille_is_leq_original_value() {
+        fn prop(xs: Samples, val: u64) -> TestResult {
+            let actual = ecdf(&xs.vec, val);
+
+            let p = (actual * 1000.0).floor() as u16;
+
+            match p {
+                0 => {
+                    // val is below the first permille threshold. Can't
+                    // calculate 0-permille value so discard.
+                    TestResult::discard()
+                }
+                _ => {
+                    // Not equal because e.g. all permilles of [0] are 0. So
+                    // value of 1 gives ecdf == 1.0 and permille(1000) == 0.
+                    let single_use = permille(&xs.vec, p);
+                    TestResult::from_bool(single_use <= val)
+                }
+            }
+        }
+
+        check(prop as fn(Samples, u64) -> TestResult);
+    }
+
+    #[test]
+    fn single_use_ecdf_followed_by_multiple_use_permille_is_leq_original_value() {
+        fn prop(xs: Samples, val: u64) -> TestResult {
+            let actual = ecdf(&xs.vec, val);
+
+            let p = (actual * 1000.0).floor() as u16;
+
+            match p {
+                0 => {
+                    // val is below the first permille threshold. Can't
+                    // calculate 0-permille value so discard.
+                    TestResult::discard()
+                }
+                _ => {
+                    // Not equal because e.g. all permilles of [0] are 0. So
+                    // value of 1 gives ecdf == 1.0 and permille(1000) == 0.
+                    let multiple_use = Ecdf::new(&xs.vec);
+                    TestResult::from_bool(multiple_use.permille(p) <= val)
+                }
+            }
+        }
+
+        check(prop as fn(Samples, u64) -> TestResult);
+    }
+
+    #[test]
+    fn multiple_use_ecdf_followed_by_single_use_permille_is_leq_original_value() {
+        fn prop(xs: Samples, val: u64) -> TestResult {
+            let ecdf = Ecdf::new(&xs.vec);
+            let actual = ecdf.value(val);
+
+            let p = (actual * 1000.0).floor() as u16;
+
+            match p {
+                0 => {
+                    // val is below the first permille threshold. Can't
+                    // calculate 0-permille value so discard.
+                    TestResult::discard()
+                }
+                _ => {
+                    // Not equal because e.g. all permilles of [0] are 0. So
+                    // value of 1 gives ecdf == 1.0 and permille(1000) == 0.
+                    let single_use = permille(&xs.vec, p);
+                    TestResult::from_bool(single_use <= val)
+                }
+            }
+        }
+
+        check(prop as fn(Samples, u64) -> TestResult);
+    }
+
+    #[test]
+    fn multiple_use_ecdf_followed_by_multiple_use_permille_is_leq_original_value() {
+        fn prop(xs: Samples, val: u64) -> TestResult {
+            let ecdf = Ecdf::new(&xs.vec);
+            let actual = ecdf.value(val);
+
+            let p = (actual * 1000.0).floor() as u16;
+
+            match p {
+                0 => {
+                    // val is below the first permille threshold. Can't
+                    // calculate 0-permille value so discard.
+                    TestResult::discard()
+                }
+                _ => {
+                    // Not equal because e.g. all permilles of [0] are 0. So
+                    // value of 1 gives ecdf == 1.0 and permille(1000) == 0.
+                    TestResult::from_bool(ecdf.permille(p) <= val)
+                }
+            }
+        }
+
+        check(prop as fn(Samples, u64) -> TestResult);
+    }
+
+    #[test]
+    fn single_use_permille_followed_by_single_use_edf_is_geq_original_value() {
+        fn prop(xs: Samples, p: Permille) -> bool {
+            let actual = permille(&xs.vec, p.val);
+
+            // Not equal because e.g. 1- through 500-permilles of [0, 1] are 0.
+            // So original value of 1 gives permille == 0 and ecdf(0) == 0.5.
+            p.val as f64 / 1000.0 <= ecdf(&xs.vec, actual)
+        }
+
+        check(prop as fn(Samples, Permille) -> bool);
+    }
+
+    #[test]
+    fn single_use_permille_followed_by_multiple_use_edf_is_geq_original_value() {
+        fn prop(xs: Samples, p: Permille) -> bool {
+            let actual = permille(&xs.vec, p.val);
+
+            let ecdf = Ecdf::new(&xs.vec);
+
+            // Not equal because e.g. 1- through 500-permilles of [0, 1] are 0.
+            // So original value of 1 gives permille == 0 and ecdf(0) == 0.5.
+            p.val as f64 / 1000.0 <= ecdf.value(actual)
+        }
+
+        check(prop as fn(Samples, Permille) -> bool);
+    }
+
+    #[test]
+    fn multiple_use_permille_followed_by_single_use_edf_is_geq_original_value() {
+        fn prop(xs: Samples, p: Permille) -> bool {
+            let multiple_use = Ecdf::new(&xs.vec);
+            let actual = multiple_use.permille(p.val);
+
+            // Not equal because e.g. 1- through 500-permilles of [0, 1] are 0.
+            // So original value of 1 gives permille == 0 and ecdf(0) == 0.5.
+            p.val as f64 / 1000.0 <= ecdf(&xs.vec, actual)
+        }
+
+        check(prop as fn(Samples, Permille) -> bool);
+    }
+
+    #[test]
+    fn multiple_use_permille_followed_by_multiple_use_edf_is_geq_original_value() {
+        fn prop(xs: Samples, p: Permille) -> bool {
+            let ecdf = Ecdf::new(&xs.vec);
+            let actual = ecdf.permille(p.val);
+
+            // Not equal because e.g. 1- through 500-permilles of [0, 1] are 0.
+            // So original value of 1 gives permille == 0 and ecdf(0) == 0.5.
+            p.val as f64 / 1000.0 <= ecdf.value(actual)
+        }
+
+        check(prop as fn(Samples, Permille) -> bool);
+    }
+
+    #[test]
+    fn single_and_multiple_use_permille_agree() {
+        fn prop(xs: Samples, p: Permille) -> bool {
+            let multiple_use = Ecdf::new(&xs.vec);
+
+            multiple_use.permille(p.val) == permille(&xs.vec, p.val)
+        }
+
+        check(prop as fn(Samples, Permille) -> bool);
+    }
+
+    #[test]
+    fn single_use_percentile_and_single_use_permille_agree() {
+        fn prop(xs: Samples, p: Percentile) -> bool {
+            let multiple_use = Ecdf::new(&xs.vec);
+
+            multiple_use.percentile(p.val) == permille(&xs.vec, p.val as u16 * 10)
+        }
+
+        check(prop as fn(Samples, Percentile) -> bool);
+    }
+
+    #[test]
+    fn single_use_percentile_and_multiple_use_permille_agree() {
+        fn prop(xs: Samples, p: Percentile) -> bool {
+            let multiple_use = Ecdf::new(&xs.vec);
+
+            percentile(&xs.vec, p.val) == multiple_use.permille(p.val as u16 * 10)
+        }
+
+        check(prop as fn(Samples, Percentile) -> bool);
+    }
+
+    #[test]
+    fn multiple_use_percentile_and_single_use_permille_agree() {
+        fn prop(xs: Samples, p: Percentile) -> bool {
+            let multiple_use = Ecdf::new(&xs.vec);
+
+            multiple_use.percentile(p.val) == permille(&xs.vec, p.val as u16 * 10)
+        }
+
+        check(prop as fn(Samples, Percentile) -> bool);
+    }
+
+    #[test]
+    fn multiple_use_percentile_and_multiple_use_permille_agree() {
+        fn prop(xs: Samples, p: Percentile) -> bool {
+            let multiple_use = Ecdf::new(&xs.vec);
+
+            multiple_use.percentile(p.val) == multiple_use.permille(p.val as u16 * 10)
         }
 
         check(prop as fn(Samples, Percentile) -> bool);
