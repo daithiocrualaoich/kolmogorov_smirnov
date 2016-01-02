@@ -123,6 +123,28 @@ impl<T: Ord + Clone> Ecdf<T> {
         self.samples[rank - 1].clone()
     }
 
+    /// Calculate a rank element for the sample.
+    ///
+    /// # Panics
+    ///
+    /// The rank requested must be between 1 and the sample length inclusive. In
+    /// particular, there is no 0-rank.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// extern crate kolmogorov_smirnov as ks;
+    ///
+    /// let samples = vec!(9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+    /// let ecdf = ks::Ecdf::new(&samples);
+    /// assert_eq!(ecdf.rank(5), 4);
+    /// ```
+    pub fn rank(&self, rank: usize) -> T {
+        let length = self.samples.len();
+        assert!(0 < rank && rank <= length);
+        self.samples[rank - 1].clone()
+    }
+
     /// Return the minimal element of the samples.
     ///
     /// # Examples
@@ -276,7 +298,17 @@ pub fn permille<T: Ord + Clone>(samples: &[T], p: u16) -> T {
 ///
 /// The rank requested must be between 1 and the sample length inclusive. In
 /// particular, there is no 0-rank.
-fn rank<T: Ord + Clone>(samples: &[T], rank: usize) -> T {
+///
+/// # Examples
+///
+/// ```
+/// extern crate kolmogorov_smirnov as ks;
+///
+/// let samples = vec!(9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+/// let rank = ks::rank(&samples, 5);
+/// assert_eq!(rank, 4);
+/// ```
+pub fn rank<T: Ord + Clone>(samples: &[T], rank: usize) -> T {
     let length = samples.len();
     assert!(length > 0);
     assert!(0 < rank && rank <= length);
@@ -368,7 +400,7 @@ mod tests {
     use self::quickcheck::{Arbitrary, Gen, QuickCheck, Testable, TestResult, StdGen};
     use std::cmp;
     use std::usize;
-    use super::{Ecdf, ecdf, percentile, permille};
+    use super::{Ecdf, ecdf, percentile, permille, rank};
 
     fn check<A: Testable>(f: A) {
         let g = StdGen::new(rand::thread_rng(), usize::MAX);
@@ -1253,6 +1285,343 @@ mod tests {
         }
 
         check(prop as fn(Samples, Percentile) -> bool);
+    }
+
+    #[test]
+    #[should_panic(expected="assertion failed: 0 < rank && rank <= length")]
+    fn single_use_rank_panics_on_zero_rank() {
+        let xs: Vec<u64> = vec![0];
+
+        rank(&xs, 0);
+    }
+
+    #[test]
+    #[should_panic(expected="assertion failed: 0 < rank && rank <= length")]
+    fn single_use_rank_panics_on_too_large_rank() {
+        let xs: Vec<u64> = vec![0];
+
+        rank(&xs, 2);
+    }
+
+    #[test]
+    #[should_panic(expected="assertion failed: 0 < rank && rank <= length")]
+    fn multiple_use_rank_panics_on_zero_rank() {
+        let xs: Vec<u64> = vec![0];
+        let ecdf = Ecdf::new(&xs);
+
+        ecdf.rank(0);
+    }
+
+    #[test]
+    #[should_panic(expected="assertion failed: 0 < rank && rank <= length")]
+    fn multiple_use_rank_panics_on_too_large_rank() {
+        let xs: Vec<u64> = vec![0];
+        let ecdf = Ecdf::new(&xs);
+
+        ecdf.rank(2);
+    }
+
+    #[test]
+    fn single_use_rank_between_samples_min_and_max() {
+        fn prop(xs: Samples, r: usize) -> bool {
+            let length = xs.vec.len();
+            let &min = xs.vec.iter().min().unwrap();
+            let &max = xs.vec.iter().max().unwrap();
+
+            let x = r % length + 1;
+            let actual = rank(&xs.vec, x);
+            min <= actual && actual <= max
+        }
+
+        check(prop as fn(Samples, usize) -> bool);
+    }
+
+    #[test]
+    fn single_use_rank_is_an_increasing_function() {
+        fn prop(xs: Samples, r: usize) -> bool {
+            let length = xs.vec.len();
+            let x = r % length + 1;
+
+            let smaller = cmp::max(x - 1, 1);
+            let larger = cmp::min(x + 1, length);
+
+            let actual = rank(&xs.vec, x);
+
+            rank(&xs.vec, smaller) <= actual && actual <= rank(&xs.vec, larger)
+        }
+
+        check(prop as fn(Samples, usize) -> bool);
+    }
+
+    #[test]
+    fn single_use_rank_1_is_sample_min() {
+        fn prop(xs: Samples) -> bool {
+            let &min = xs.vec.iter().min().unwrap();
+
+            rank(&xs.vec, 1) == min
+        }
+
+        check(prop as fn(Samples) -> bool);
+    }
+
+    #[test]
+    fn single_use_rank_length_is_sample_max() {
+        fn prop(xs: Samples) -> bool {
+            let &max = xs.vec.iter().max().unwrap();
+
+            rank(&xs.vec, xs.vec.len()) == max
+        }
+
+        check(prop as fn(Samples) -> bool);
+    }
+
+    #[test]
+    fn multiple_use_rank_between_samples_min_and_max() {
+        fn prop(xs: Samples, r: usize) -> bool {
+            let length = xs.vec.len();
+            let &min = xs.vec.iter().min().unwrap();
+            let &max = xs.vec.iter().max().unwrap();
+
+            let ecdf = Ecdf::new(&xs.vec);
+
+            let x = r % length + 1;
+            let actual = ecdf.rank(x);
+            min <= actual && actual <= max
+        }
+
+        check(prop as fn(Samples, usize) -> bool);
+    }
+
+    #[test]
+    fn multiple_use_rank_is_an_increasing_function() {
+        fn prop(xs: Samples, r: usize) -> bool { 
+            let length = xs.vec.len();
+            let x = r % length + 1;
+
+            let smaller = cmp::max(x - 1, 1);
+            let larger = cmp::min(x + 1, length);
+                                       
+            let ecdf = Ecdf::new(&xs.vec);
+            let actual = ecdf.rank(x);
+
+            ecdf.rank(smaller) <= actual && actual <= ecdf.rank(larger)
+        }
+
+        check(prop as fn(Samples, usize) -> bool);
+    }
+
+    #[test]
+    fn multiple_use_rank_1_is_sample_min() {
+        fn prop(xs: Samples) -> bool {
+            let &min = xs.vec.iter().min().unwrap();
+            let ecdf = Ecdf::new(&xs.vec);
+
+            ecdf.rank(1) == min
+        }
+
+        check(prop as fn(Samples) -> bool);
+    }
+
+    #[test]
+    fn multiple_use_rank_length_is_sample_max() {
+        fn prop(xs: Samples) -> bool {
+            let &max = xs.vec.iter().max().unwrap(); 
+            let ecdf = Ecdf::new(&xs.vec);
+
+            ecdf.rank(xs.vec.len()) == max
+        }
+
+        check(prop as fn(Samples) -> bool);
+    }
+
+    #[test]
+    fn single_use_ecdf_followed_by_single_use_rank_is_leq_original_value() {
+        fn prop(xs: Samples, val: u64) -> TestResult {
+            let length = xs.vec.len();
+            let actual = ecdf(&xs.vec, val);
+
+            let p = (actual * length as f64).floor() as usize;
+
+            match p {
+                0 => {
+                    // val is below the first rank threshold. Can't
+                    // calculate 0-rank value so discard.
+                    TestResult::discard()
+                }
+                _ => {
+                    // Not equal because e.g. all ranks of [0] are 0. So
+                    // value of 1 gives ecdf == 1.0 and rank(1) == 0.
+                    let single_use = rank(&xs.vec, p);
+                    TestResult::from_bool(single_use <= val)
+                }
+            }
+        }
+
+        check(prop as fn(Samples, u64) -> TestResult);
+    }
+
+    #[test]
+    fn single_use_ecdf_followed_by_multiple_use_rank_is_leq_original_value() {
+        fn prop(xs: Samples, val: u64) -> TestResult { 
+            let length = xs.vec.len();
+            let actual = ecdf(&xs.vec, val);
+
+            let p = (actual * length as f64).floor() as usize;
+
+            match p {
+                0 => {
+                    // val is below the first rank threshold. Can't
+                    // calculate 0-rank value so discard.
+                    TestResult::discard()
+                }
+                _ => {
+                    // Not equal because e.g. all ranks of [0] are 0. So
+                    // value of 1 gives ecdf == 1.0 and rank(1) == 0.
+                    let multiple_use = Ecdf::new(&xs.vec);
+                    TestResult::from_bool(multiple_use.rank(p) <= val)
+                }
+            }
+        }
+
+        check(prop as fn(Samples, u64) -> TestResult);
+    }
+
+    #[test]
+    fn multiple_use_ecdf_followed_by_single_use_rank_is_leq_original_value() {
+        fn prop(xs: Samples, val: u64) -> TestResult {   
+            let length = xs.vec.len();
+            let ecdf = Ecdf::new(&xs.vec);
+            let actual = ecdf.value(val);
+
+            let p = (actual * length as f64).floor() as usize;
+
+            match p {
+                0 => {
+                    // val is below the first rank threshold. Can't
+                    // calculate 0-rank value so discard.
+                    TestResult::discard()
+                }
+                _ => {
+                    // Not equal because e.g. all ranks of [0] are 0. So
+                    // value of 1 gives ecdf == 1.0 and rank(1) == 0.
+                    let single_use = rank(&xs.vec, p);
+                    TestResult::from_bool(single_use <= val)
+                }
+            }
+        }
+
+        check(prop as fn(Samples, u64) -> TestResult);
+    }
+ 
+    #[test]
+    fn multiple_use_ecdf_followed_by_multiple_use_rank_is_leq_original_value() {
+        fn prop(xs: Samples, val: u64) -> TestResult {   
+            let length = xs.vec.len();
+            let ecdf = Ecdf::new(&xs.vec);
+            let actual = ecdf.value(val);
+
+            let p = (actual * length as f64).floor() as usize;
+
+            match p {
+                0 => {
+                    // val is below the first rank threshold. Can't
+                    // calculate 0-rank value so discard.
+                    TestResult::discard()
+                }
+                _ => {
+                    // Not equal because e.g. all ranks of [0] are 0. So
+                    // value of 1 gives ecdf == 1.0 and rank(1) == 0.
+                    TestResult::from_bool(ecdf.rank(p) <= val)
+                }
+            }
+        }
+
+        check(prop as fn(Samples, u64) -> TestResult);
+    }
+
+    #[test]
+    fn single_use_rank_followed_by_single_use_ecdf_is_geq_original_value() {
+        fn prop(xs: Samples, r: usize) -> bool {
+            let length = xs.vec.len();
+            let x = r % length + 1;
+
+            let actual = rank(&xs.vec, x);
+
+            // Not equal because e.g. all ranks of [0, 0] are 0. So
+            // rank(1) == 0 and value of 0 gives ecdf == 1.0.
+            (x as f64 / length as f64) <= ecdf(&xs.vec, actual)
+        }
+
+        assert!(prop(Samples { vec: vec![0, 0] }, 0));
+        check(prop as fn(Samples, usize) -> bool);
+    }
+
+    #[test]
+    fn single_use_rank_followed_by_multiple_use_ecdf_is_geq_original_value() {
+        fn prop(xs: Samples, r: usize) -> bool { 
+            let length = xs.vec.len();
+            let x = r % length + 1;
+
+            let actual = rank(&xs.vec, x);
+
+            let ecdf = Ecdf::new(&xs.vec);
+
+            // Not equal because e.g. all ranks of [0, 0] are 0. So
+            // rank(1) == 0 and value of 0 gives ecdf == 1.0.
+            (x as f64 / length as f64) <= ecdf.value(actual)
+        }
+
+        assert!(prop(Samples { vec: vec![0, 0] }, 0));
+        check(prop as fn(Samples, usize) -> bool);
+    }
+
+    #[test]
+    fn multiple_use_rank_followed_by_single_use_ecdf_is_geq_original_value() {
+        fn prop(xs: Samples, r: usize) -> bool {  
+            let length = xs.vec.len();
+            let x = r % length + 1;
+
+            let multiple_use = Ecdf::new(&xs.vec);
+            let actual = multiple_use.rank(x);
+
+            // Not equal because e.g. all ranks of [0, 0] are 0. So
+            // rank(1) == 0 and value of 0 gives ecdf == 1.0.
+            (x as f64 / length as f64) <= ecdf(&xs.vec, actual)
+        }
+ 
+        assert!(prop(Samples { vec: vec![0, 0] }, 0));
+        check(prop as fn(Samples, usize) -> bool);
+    }
+
+    #[test]
+    fn multiple_use_rank_followed_by_multiple_use_ecdf_is_geq_original_value() {
+        fn prop(xs: Samples, r: usize) -> bool {
+            let length = xs.vec.len();
+            let x = r % length + 1;
+
+            let ecdf = Ecdf::new(&xs.vec);
+            let actual = ecdf.rank(x);
+
+            // Not equal because e.g. all ranks of [0, 0] are 0. So
+            // rank(1) == 0 and value of 0 gives ecdf == 1.0.
+            (x as f64 / length as f64) <= ecdf.value(actual)
+        }
+ 
+        assert!(prop(Samples { vec: vec![0, 0] }, 0));
+        check(prop as fn(Samples, usize) -> bool);
+    }
+
+    #[test]
+    fn single_and_multiple_use_rank_agree() {
+        fn prop(xs: Samples, r: usize) -> bool {
+            let length = xs.vec.len();
+            let multiple_use = Ecdf::new(&xs.vec);
+
+            let x = r % length + 1;
+            multiple_use.rank(x) == rank(&xs.vec, x)
+        }
+
+        check(prop as fn(Samples, usize) -> bool);
     }
 
     #[test]
