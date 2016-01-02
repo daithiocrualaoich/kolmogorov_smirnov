@@ -894,7 +894,7 @@ mod tests {
     }
 
     #[test]
-    fn single_use_percentile_followed_by_single_use_edf_is_geq_original_value() {
+    fn single_use_percentile_followed_by_single_use_ecdf_is_geq_original_value() {
         fn prop(xs: Samples, p: Percentile) -> bool {
             let actual = percentile(&xs.vec, p.val);
 
@@ -907,7 +907,7 @@ mod tests {
     }
 
     #[test]
-    fn single_use_percentile_followed_by_multiple_use_edf_is_geq_original_value() {
+    fn single_use_percentile_followed_by_multiple_use_ecdf_is_geq_original_value() {
         fn prop(xs: Samples, p: Percentile) -> bool {
             let actual = percentile(&xs.vec, p.val);
 
@@ -922,7 +922,7 @@ mod tests {
     }
 
     #[test]
-    fn multiple_use_percentile_followed_by_single_use_edf_is_geq_original_value() {
+    fn multiple_use_percentile_followed_by_single_use_ecdf_is_geq_original_value() {
         fn prop(xs: Samples, p: Percentile) -> bool {
             let multiple_use = Ecdf::new(&xs.vec);
             let actual = multiple_use.percentile(p.val);
@@ -936,7 +936,7 @@ mod tests {
     }
 
     #[test]
-    fn multiple_use_percentile_followed_by_multiple_use_edf_is_geq_original_value() {
+    fn multiple_use_percentile_followed_by_multiple_use_ecdf_is_geq_original_value() {
         fn prop(xs: Samples, p: Percentile) -> bool {
             let ecdf = Ecdf::new(&xs.vec);
             let actual = ecdf.percentile(p.val);
@@ -1177,7 +1177,7 @@ mod tests {
     }
 
     #[test]
-    fn single_use_permille_followed_by_single_use_edf_is_geq_original_value() {
+    fn single_use_permille_followed_by_single_use_ecdf_is_geq_original_value() {
         fn prop(xs: Samples, p: Permille) -> bool {
             let actual = permille(&xs.vec, p.val);
 
@@ -1190,7 +1190,7 @@ mod tests {
     }
 
     #[test]
-    fn single_use_permille_followed_by_multiple_use_edf_is_geq_original_value() {
+    fn single_use_permille_followed_by_multiple_use_ecdf_is_geq_original_value() {
         fn prop(xs: Samples, p: Permille) -> bool {
             let actual = permille(&xs.vec, p.val);
 
@@ -1205,7 +1205,7 @@ mod tests {
     }
 
     #[test]
-    fn multiple_use_permille_followed_by_single_use_edf_is_geq_original_value() {
+    fn multiple_use_permille_followed_by_single_use_ecdf_is_geq_original_value() {
         fn prop(xs: Samples, p: Permille) -> bool {
             let multiple_use = Ecdf::new(&xs.vec);
             let actual = multiple_use.permille(p.val);
@@ -1219,7 +1219,7 @@ mod tests {
     }
 
     #[test]
-    fn multiple_use_permille_followed_by_multiple_use_edf_is_geq_original_value() {
+    fn multiple_use_permille_followed_by_multiple_use_ecdf_is_geq_original_value() {
         fn prop(xs: Samples, p: Permille) -> bool {
             let ecdf = Ecdf::new(&xs.vec);
             let actual = ecdf.permille(p.val);
